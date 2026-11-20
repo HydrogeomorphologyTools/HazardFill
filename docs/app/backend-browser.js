@@ -4,7 +4,7 @@
  * Copyright (C) 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta - CNR-GEO (Istituto di Geoscienze). Licenza GNU GPL v2. */
 (function () {
   'use strict';
-  const VERSION = '1.1.0';
+  const VERSION = '1.1.1';
   const $ = (id) => document.getElementById(id);
   const COLORS = { 1: [255, 235, 59], 2: [255, 140, 0], 3: [214, 40, 40] };
   const FF = { 1: 0.72, 2: 0.55, 3: 0.38 };
@@ -231,7 +231,7 @@
   }
 
   // ------------------------------------------------------------------ OpenStreetMap (Overpass)
-  const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+  const OVERPASS = ['https://overpass.kumi.systems/api/interpreter', 'https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
   async function overpass(query) {
     let last = null;
     for (let k = 0; k < 6; k++) {

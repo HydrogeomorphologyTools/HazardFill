@@ -159,3 +159,71 @@ def test_flood_matches_skimage_watershed_when_available():
     a = core._flood(lab, z)
     b = skseg.watershed(np.zeros(z.shape, np.uint8), markers=lab, mask=z)
     assert (a != b).sum() <= 0.01 * z.sum()
+
+
+# ------------------------------------------------------------------ download OSM (Overpass)
+def _fake_overpass():
+    import json
+    import threading
+    import time as _t
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            if self.path == "/hang":
+                _t.sleep(5)                                   # un server che non risponde
+            body = json.dumps({"elements": []}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, "http://127.0.0.1:%d" % srv.server_address[1]
+
+
+def test_overpass_moves_on_when_a_server_does_not_answer():
+    import time
+    srv, base = _fake_overpass()
+    try:
+        t = time.time()
+        r = core._overpass("q", tries=3, timeout=1, mirrors=[base + "/hang", base + "/ok"])
+        assert r == {"elements": []} and time.time() - t < 4.5      # 1 s di attesa + pausa, non 5 s
+    finally:
+        srv.shutdown()
+
+
+def test_overpass_can_be_cancelled():
+    import time
+    srv, base = _fake_overpass()
+    try:
+        t0 = time.time()
+        with pytest.raises(core.Cancelled):
+            core._overpass("q", tries=6, timeout=1, mirrors=[base + "/hang"], is_canceled=lambda: time.time() - t0 > 1.2)
+        assert time.time() - t0 < 5
+    finally:
+        srv.shutdown()
+
+
+def test_overpass_gives_a_clear_error_when_all_servers_fail():
+    with pytest.raises(RuntimeError) as e:
+        core._overpass("q", tries=2, timeout=1, mirrors=["http://127.0.0.1:9/x"])
+    assert "shapefile" in str(e.value)
+
+
+def test_osm_buildings_uses_the_cache_without_network(tmp_path):
+    import json
+    south, west, north, east = 46.0, 10.0, 46.01, 10.01
+    data = {"elements": [{"type": "way", "id": 1, "geometry": [{"lat": 46.001, "lon": 10.001}, {"lat": 46.001, "lon": 10.002},
+                                                                  {"lat": 46.002, "lon": 10.002}, {"lat": 46.001, "lon": 10.001}]}]}
+    name = "osm_%.5f_%.5f_%.5f_%.5f.json" % (south, west, north, east)
+    (tmp_path / name).write_text(json.dumps(data), encoding="utf-8")
+    rings = core.osm_buildings(south, west, north, east, cache_dir=str(tmp_path), is_canceled=lambda: False)
+    assert len(rings) == 1 and rings[0][0] == rings[0][-1]
+    with pytest.raises(core.Cancelled):
+        core.osm_buildings(south, west, north, east, cache_dir=str(tmp_path), is_canceled=lambda: True)

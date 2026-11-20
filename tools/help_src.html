@@ -56,6 +56,7 @@
  <li>Sorgente <b>solo edifici forniti</b> (predefinito) / <b>forniti + integra da OSM</b> / <b>solo OSM</b>.</li>
  <li>Gli edifici vengono scaricati da OpenStreetMap (servizio Overpass) per l'estensione del raster, <b>serve connessione internet</b>. Per rispetto del servizio i risultati sono messi in cache su disco e le richieste ritentano automaticamente su server alternativi se sono occupati.</li>
  <li>Con <i>integra</i>, un edificio OSM viene aggiunto solo se <b>meno del 20%</b> della sua superficie ricade su edifici gi&agrave; forniti, cos&igrave; non si duplicano gli edifici presenti nei tuoi dati.</li>
+ <li>Se il servizio OSM &egrave; lento o non risponde (capita), l'operazione si pu&ograve; <b>annullare</b> e conviene fornire gli edifici come <b>shapefile (anche .zip) o GeoPackage</b>: nel repository c'&egrave; un esempio pronto (<code>examples/Figna_test</code>).</li>
  <li>Limiti: la copertura OSM varia da zona a zona; dei multipoligoni sono usati solo gli anelli esterni (i cortili interni sono ignorati). Dati &copy; contributori OpenStreetMap (ODbL): citare la fonte.</li>
 </ul>
 
@@ -131,5 +132,5 @@ I pixel <b>tratteggiati</b> sono quelli modificati dal passo e riportano il loro
 
 <h2>6. Memoria e tempi</h2>
 <p>Il calcolo lavora in memoria su tutto il raster (numpy/scipy). Per raster molto grandi (decine di milioni di pixel, es. 0,5 m su pi&ugrave; km&sup2;) servono alcuni GB di RAM e da secondi a minuti; la chiusura delle zone interne con varco grande &egrave; il passo pi&ugrave; pesante.</p>
-<p><small>HazardFill 1.1.0 &middot; &copy; 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta &mdash; CNR-GEO (Istituto di Geoscienze) &middot; Licenza GNU GPL v2 &middot; <a href="https://github.com/HydrogeomorphologyTools/HazardFill">github.com/HydrogeomorphologyTools/HazardFill</a>. Da validare sui dati definitivi prima di qualunque uso ufficiale. Dati OpenStreetMap &copy; contributori OpenStreetMap (ODbL).</small></p>
+<p><small>HazardFill 1.1.1 &middot; &copy; 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta &mdash; CNR-GEO (Istituto di Geoscienze) &middot; Licenza GNU GPL v2 &middot; <a href="https://github.com/HydrogeomorphologyTools/HazardFill">github.com/HydrogeomorphologyTools/HazardFill</a>. Da validare sui dati definitivi prima di qualunque uso ufficiale. Dati OpenStreetMap &copy; contributori OpenStreetMap (ODbL).</small></p>
 </body></html>

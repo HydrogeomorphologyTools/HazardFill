@@ -214,7 +214,15 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
                 to_ll = QgsCoordinateTransform(crs, QgsCoordinateReferenceSystem("EPSG:4326"), context.transformContext())
                 bb = to_ll.transformBoundingBox(rect)
                 cache = os.path.join(tempfile.gettempdir(), "hazardfill_osm_cache")
-                rings = core.osm_buildings(bb.yMinimum(), bb.xMinimum(), bb.yMaximum(), bb.xMaximum(), cache_dir=cache, log=feedback.pushInfo)
+                feedback.pushInfo("(puoi annullare in qualsiasi momento; se il servizio e' lento puoi fornire gli edifici come shapefile/GeoPackage)")
+                try:
+                    rings = core.osm_buildings(bb.yMinimum(), bb.xMinimum(), bb.yMaximum(), bb.xMaximum(), cache_dir=cache, log=feedback.pushInfo,
+                                               is_canceled=feedback.isCanceled)
+                except core.Cancelled:
+                    feedback.pushInfo("Operazione annullata.")
+                    return {}
+                except RuntimeError as e:
+                    raise QgsProcessingException(str(e))
                 from_ll = QgsCoordinateTransform(QgsCoordinateReferenceSystem("EPSG:4326"), crs, context.transformContext())
                 wl = []
                 for r in rings:

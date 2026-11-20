@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 — 2026-11-20
+* **Edifici da OpenStreetMap più robusti**: ogni richiesta a Overpass ha un tempo massimo (30 s), i server sono provati in ordine migliore, i messaggi indicano a che punto si è e l'operazione si può **annullare subito** (prima il plugin poteva restare in attesa per minuti).
+* Dati di prova: aggiunti `Edifici_Figna_test.zip` (shapefile compresso) e `Edifici_Figna_test.gpkg`.
+
 ## 1.1.0 — 2026-11-20
 * **Versione online (GitHub Pages)**: la pagina funziona interamente nel browser (Pyodide con numpy/scipy, GeoTIFF.js, proj4js, shpjs): caricamento di GeoTIFF ed edifici (zip shapefile o GeoJSON), edifici OpenStreetMap, esportazione di raster con codici, raster pulito, stile QGIS e immagine PNG. Risultati identici a quelli del server e del plugin. Pensata per prove con dati non troppo pesanti; il vettoriale resta nel plugin e nella versione locale.
 * La pagina web parla con un «backend» (server Python oppure browser); aggiunta la configurazione da URL.

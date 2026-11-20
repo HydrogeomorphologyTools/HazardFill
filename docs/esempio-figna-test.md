@@ -4,6 +4,17 @@
 
 La cartella contiene un raster (`Mappa_Pericolo_V1.tif`, 0,5 m, EPSG:32632, classi 0-3) e gli edifici (`Edifici/Edifici.shp`).
 
+## Edifici pronti da scaricare
+
+Per provare senza scaricare gli edifici da OpenStreetMap (che a volte è lento) usa gli edifici di prova già pronti:
+
+* shapefile compresso: [`Edifici_Figna_test.zip`](https://github.com/HydrogeomorphologyTools/HazardFill/raw/main/examples/Figna_test/Edifici_Figna_test.zip)
+* GeoPackage: [`Edifici_Figna_test.gpkg`](https://github.com/HydrogeomorphologyTools/HazardFill/raw/main/examples/Figna_test/Edifici_Figna_test.gpkg)
+* il raster: [`Mappa_Pericolo_V1.tif`](https://github.com/HydrogeomorphologyTools/HazardFill/raw/main/examples/Figna_test/Mappa_Pericolo_V1.tif)
+
+Nel plugin: aggiungi lo ZIP o il GeoPackage a QGIS (*Layer → Aggiungi layer vettoriale*, anche direttamente lo `.zip`) e indicalo come «Edifici», con sorgente **«solo edifici forniti»**.
+Nella pagina web (locale o online): sezione «Carica i tuoi dati» → GeoTIFF e, come edifici, lo `.zip`.
+
 ## Con la pagina web
 
 1. Avvia il server (`cd web && python server.py`) e apri http://localhost:8765: compare l'area **Figna_test**.

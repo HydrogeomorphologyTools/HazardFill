@@ -137,6 +137,40 @@ try:
 except Exception as e:
     check("raster in gradi: errore chiaro", "proiettato" in str(e), str(e).splitlines()[0][:60])
 
+# download OSM: con un server che non risponde l'utente puo' annullare senza errori
+import threading  # noqa: E402
+import time  # noqa: E402
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer  # noqa: E402
+from qgis.core import QgsProcessingFeedback  # noqa: E402
+
+
+class _Hang(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        time.sleep(8)
+        self.send_response(500)
+        self.end_headers()
+
+
+_srv = ThreadingHTTPServer(("127.0.0.1", 0), _Hang)
+threading.Thread(target=_srv.serve_forever, daemon=True).start()
+_old_mirrors = list(core.OVERPASS)
+core.OVERPASS[:] = ["http://127.0.0.1:%d/x" % _srv.server_address[1]]
+tempfile.tempdir = tempfile.mkdtemp(prefix="hf_osm_")          # cache OSM vuota
+fb = QgsProcessingFeedback()
+threading.Timer(2.0, fb.cancel).start()
+t0 = time.time()
+try:
+    r = processing.run("hazardfill:fillhazard", dict(INPUT=rl, BUILDINGS=None, OSM=2, OUTPUT=os.path.join(tmp, "osm_annullato.tif")), feedback=fb)
+    check("download OSM annullato dall'utente (senza errori, entro pochi secondi)", time.time() - t0 < 6 and not os.path.exists(os.path.join(tmp, "osm_annullato.tif")), "%.1f s" % (time.time() - t0))
+except Exception as e:
+    check("download OSM annullato dall'utente (senza errori)", False, str(e)[:80])
+core.OVERPASS[:] = _old_mirrors
+_srv.shutdown()
+
 # esporta mappa (PNG) con riempimenti e originale
 QgsProject.instance().addMapLayers([rl, vl])
 el = QgsRasterLayer(out, "elaborata")

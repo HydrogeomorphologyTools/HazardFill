@@ -13,6 +13,7 @@ Codici di modifica nel raster esportato: livello + 10*passo  (passo 1 edifici, 2
 """
 import json
 import os
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -20,7 +21,7 @@ import urllib.request
 import numpy as np
 from scipy import ndimage as ndi
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 COLORS = {1: (255, 235, 59), 2: (255, 140, 0), 3: (214, 40, 40)}
 STEP_NAME = {1: "edifici", 2: "zone interne", 3: "buffer"}
@@ -97,35 +98,86 @@ def merge_building_ids(bid_user, bid_osm, min_overlap=0.2):
 
 
 # ------------------------------------------------------------------ OSM
-OVERPASS = ["https://overpass-api.de/api/interpreter",
-            "https://overpass.kumi.systems/api/interpreter",
+OVERPASS = ["https://overpass.kumi.systems/api/interpreter",
+            "https://overpass-api.de/api/interpreter",
             "https://overpass.private.coffee/api/interpreter"]
 
 
-def _overpass(query, tries=6, timeout=120):
-    last = None
-    for k in range(tries):
-        url = OVERPASS[k % len(OVERPASS)]
+class Cancelled(Exception):
+    """L'utente ha annullato l'operazione."""
+
+
+def _sleep(seconds, is_canceled=None):
+    end = time.time() + seconds
+    while time.time() < end:
+        if is_canceled and is_canceled():
+            raise Cancelled()
+        time.sleep(min(0.2, max(0.0, end - time.time())))
+
+
+def _fetch_json(url, query, timeout, is_canceled=None):
+    """Una richiesta POST in un thread separato: si puo' annullare subito e non dura mai piu' di ~1,5 x timeout."""
+    box = {}
+
+    def work():
         try:
             req = urllib.request.Request(url, data=urllib.parse.urlencode({"data": query}).encode(),
                                          headers={"User-Agent": "HazardFill-QGIS/%s" % __version__, "Accept": "application/json"})
             with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.loads(r.read().decode("utf-8"))
-        except Exception as e:           # server occupato / timeout: prossimo mirror con attesa crescente
+                box["data"] = json.loads(r.read().decode("utf-8"))
+        except Exception as e:                      # noqa: BLE001
+            box["err"] = e
+
+    th = threading.Thread(target=work, daemon=True)
+    th.start()
+    t0 = time.time()
+    while th.is_alive():
+        th.join(0.2)
+        if is_canceled and is_canceled():
+            raise Cancelled()
+        if time.time() - t0 > timeout * 1.5:
+            raise TimeoutError("nessuna risposta entro %d s" % int(timeout * 1.5))
+    if "err" in box:
+        raise box["err"]
+    return box["data"]
+
+
+def _overpass(query, tries=6, timeout=30, mirrors=None, is_canceled=None, log=None):
+    """Interroga Overpass provando i server a turno: ogni richiesta ha un tempo massimo (`timeout`, secondi),
+    un server che non risponde non blocca gli altri e `is_canceled()` permette di annullare subito."""
+    mirrors = mirrors or OVERPASS
+    last = None
+    for k in range(tries):
+        if is_canceled and is_canceled():
+            raise Cancelled()
+        url = mirrors[k % len(mirrors)]
+        host = urllib.parse.urlparse(url).netloc
+        if log:
+            log("OSM: richiesta a %s (tentativo %d/%d, massimo %d s)..." % (host, k + 1, tries, timeout))
+        try:
+            return _fetch_json(url, query, timeout, is_canceled)
+        except Cancelled:
+            raise
+        except Exception as e:           # server occupato / timeout: prossimo server dopo una breve attesa
             last = e
-            time.sleep(min(2 * (k + 1), 15))
-    raise RuntimeError("Overpass non raggiungibile: %s" % last)
+            if log:
+                log("OSM: %s non risponde (%s)" % (host, str(e)[:80]))
+            _sleep(min(1.5 * (k + 1), 6), is_canceled)
+    raise RuntimeError("Overpass non raggiungibile (%s): riprova piu' tardi oppure fornisci gli edifici come shapefile/GeoPackage" % last)
 
 
-def osm_buildings(south, west, north, east, cache_dir=None, step=0.05, log=None):
+def osm_buildings(south, west, north, east, cache_dir=None, step=0.05, log=None, is_canceled=None):
     """Poligoni degli edifici OSM nel bbox WGS84 -> lista di anelli [(lon, lat), ...].
     Interroga a riquadri di `step` gradi; cache su disco opzionale. Le relazioni multipoligono
-    vengono usate solo per gli anelli esterni gia' chiusi (i cortili interni sono ignorati)."""
+    vengono usate solo per gli anelli esterni gia' chiusi (i cortili interni sono ignorati).
+    `is_canceled` (facoltativo) e' una funzione che restituisce True se l'utente ha annullato (solleva Cancelled)."""
     rings, seen = [], set()
     ny = max(1, int(np.ceil((north - south) / step)))
     nx = max(1, int(np.ceil((east - west) / step)))
     for iy in range(ny):
         for ix in range(nx):
+            if is_canceled and is_canceled():
+                raise Cancelled()
             s, n = south + iy * (north - south) / ny, south + (iy + 1) * (north - south) / ny
             w, e = west + ix * (east - west) / nx, west + (ix + 1) * (east - west) / nx
             fn = os.path.join(cache_dir, "osm_%.5f_%.5f_%.5f_%.5f.json" % (s, w, n, e)) if cache_dir else None
@@ -137,7 +189,7 @@ def osm_buildings(south, west, north, east, cache_dir=None, step=0.05, log=None)
                     log("OSM: riquadro %d/%d ..." % (iy * nx + ix + 1, nx * ny))
                 q = ('[out:json][timeout:90];(way["building"](%f,%f,%f,%f);relation["building"](%f,%f,%f,%f););out geom;'
                      % (s, w, n, e, s, w, n, e))
-                data = _overpass(q)
+                data = _overpass(q, is_canceled=is_canceled, log=log)
                 if fn:
                     os.makedirs(cache_dir, exist_ok=True)
                     with open(fn, "w", encoding="utf-8") as f:
