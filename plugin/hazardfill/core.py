@@ -20,7 +20,7 @@ import urllib.request
 import numpy as np
 from scipy import ndimage as ndi
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 COLORS = {1: (255, 235, 59), 2: (255, 140, 0), 3: (214, 40, 40)}
 STEP_NAME = {1: "edifici", 2: "zone interne", 3: "buffer"}

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HazardFill (HF) – pre-screening delle mappe di pericolosità</title>
+<link rel="icon" type="image/svg+xml" href="app/logo.svg">
+<style>
+ body{font:16px/1.55 system-ui,Segoe UI,Arial,sans-serif;margin:0;color:#1d2733;background:#f5f7fa}
+ main{max-width:860px;margin:0 auto;padding:28px 18px 60px}
+ header{display:flex;align-items:center;gap:18px;margin-bottom:10px}
+ header img{width:84px;height:84px}
+ h1{margin:0;font-size:30px;color:#1f3a5f} .sub{color:#4a5a6a;margin-top:2px}
+ .warn{background:#fff3cd;border-left:5px solid #f5b400;padding:12px 16px;border-radius:4px;margin:18px 0;font-size:15px}
+ .cta{display:inline-block;background:#1f3a5f;color:#fff;text-decoration:none;font-weight:600;padding:13px 22px;border-radius:8px;margin:6px 0 2px;font-size:17px}
+ .cta:hover{background:#2b4f80}
+ .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:22px}
+ .card{background:#fff;border:1px solid #dde3ea;border-radius:8px;padding:14px 16px}
+ .card h3{margin:0 0 6px;font-size:17px;color:#1f3a5f} .card p{margin:4px 0;font-size:14.5px} .card a{font-weight:600}
+ .small{font-size:13.5px;color:#556} footer{margin-top:34px;font-size:13.5px;color:#556;border-top:1px solid #dde3ea;padding-top:14px}
+ img.fig{width:100%;border:1px solid #dde3ea;border-radius:6px;margin-top:18px}
+</style>
+</head>
+<body>
+<main>
+ <header>
+  <img src="app/logo.svg" alt="HazardFill HF">
+  <div><h1>HazardFill <span style="font-weight:400">(HF)</span></h1>
+  <div class="sub">Pre-screening delle mappe di pericolosità: chiusura delle aree prive di valore</div></div>
+ </header>
+
+ <div class="warn"><b>Avvertenza.</b> HazardFill è un <b>ausilio di pre-screening</b> per i <b>gestori del territorio</b> nella <b>fase di valutazione finale della mappatura del pericolo</b>,
+ per una <b>scelta e una gestione più consapevoli del vincolo</b> da apporre sul territorio. Non produce mappe di pericolosità e non sostituisce la modellazione né la valutazione di esperti;
+ i valori proposti sono <i>esempi di partenza</i>, non soglie di validità generale.</div>
+
+ <p>Su una mappa di pericolosità a classi (0 = nessun pericolo, 1 basso, 2 medio, 3 alto) lo strumento assegna agli <b>edifici</b> la classe massima che li tocca, chiude le <b>zone interne</b> prive di valore
+ e aggiunge un <b>buffer graduato</b> sul margine, mostrando <b>cosa cambierebbe</b> rispetto alla mappatura originale. Ogni pixel modificato porta un codice, così il dato simulato e quello assegnato restano sempre distinguibili.</p>
+
+ <a class="cta" href="app/">Prova la versione online &rarr;</a>
+ <div class="small">Si apre nel browser, senza installare nulla: puoi caricare un tuo GeoTIFF (e gli edifici) oppure usare l'esempio. Il calcolo avviene <b>sul tuo computer</b>: i file non vengono inviati a nessun server.</div>
+
+ <div class="warn" style="margin-top:20px"><b>La versione online è pensata per provare lo strumento</b> con dati non troppo pesanti (fino a qualche decina di milioni di pixel) e non per un uso intensivo o massivo.
+ Per lavorare con regolarità, su dati grandi o per produrre i risultati ufficiali, la scelta migliore per il singolo utente è il <b>plugin QGIS</b>.</div>
+
+ <img class="fig" src="https://raw.githubusercontent.com/HydrogeomorphologyTools/HazardFill/main/docs/images/figna_riempimenti.jpg" alt="Esempio su dati di prova">
+ <div class="small">Dati di prova (Figna_test): mappatura con riempimenti. I dati di esempio non sono mappature di pericolosità reali né ufficiali.</div>
+
+ <div class="cards">
+  <div class="card"><h3>Plugin QGIS</h3><p>Il modo migliore per lavorare con i propri dati: stessa logica, anche in batch, con vettoriale GeoPackage ed esportazione della mappa.</p>
+   <p><a href="https://github.com/HydrogeomorphologyTools/HazardFill/releases/latest">Scarica lo ZIP</a> &middot; <a href="https://github.com/HydrogeomorphologyTools/HazardFill/blob/main/docs/plugin-qgis.md">guida</a></p></div>
+  <div class="card"><h3>Pagina web locale</h3><p>Il server Python sul proprio computer: lavora su cartelle di dati o con file caricati dalla pagina, esporta anche il vettoriale.</p>
+   <p><a href="https://github.com/HydrogeomorphologyTools/HazardFill/releases/latest">Scarica</a> &middot; <a href="https://github.com/HydrogeomorphologyTools/HazardFill/blob/main/docs/web-locale.md">guida</a></p></div>
+  <div class="card"><h3>Documentazione</h3><p>Metodo, formati e codici, esempio passo-passo sui dati di prova.</p>
+   <p><a href="https://github.com/HydrogeomorphologyTools/HazardFill#readme">README</a> &middot; <a href="https://github.com/HydrogeomorphologyTools/HazardFill/tree/main/docs">documenti</a> &middot; <a href="app/help.html">Help – utilizzo</a></p></div>
+ </div>
+
+ <footer>
+  &copy; 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta &mdash; CNR-GEO (Istituto di Geoscienze). Software libero con licenza <a href="https://www.gnu.org/licenses/old-licenses/gpl-2.0.html">GNU GPL v2</a>, senza alcuna garanzia.
+  Codice: <a href="https://github.com/HydrogeomorphologyTools/HazardFill">github.com/HydrogeomorphologyTools/HazardFill</a>.<br>
+  La versione online usa librerie e servizi di terzi (Pyodide, GeoTIFF.js, proj4js, shpjs, Leaflet da CDN; carte OpenStreetMap, Esri, OpenTopoMap; edifici OpenStreetMap tramite Overpass, &copy; contributori OpenStreetMap, ODbL).
+ </footer>
+</main>
+</body>
+</html>

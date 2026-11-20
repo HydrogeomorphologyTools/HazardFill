@@ -82,6 +82,18 @@
 <script>
 let D, map, base, imgLayers={}, procLayer=null, bldLayer=null, origLayer=null, cur, timer, reqId=0;
 const $=id=>document.getElementById(id);
+// ---- backend: il server Python (predefinito) oppure, nella versione per GitHub Pages, il calcolo nel browser
+const serverBackend={
+  info:()=>fetch('/api/info').then(r=>r.json()),
+  process:async q=>(await fetch('/api/process?'+q)).json(),
+  exportRaster:(q,clean)=>{location.href='/api/export?'+q+(clean?'&clean=1':'');},
+  exportStyle:(name,clean)=>{location.href='/api/style?name='+encodeURIComponent(name)+'&clean='+(clean?1:0);},
+  exportVector:q=>{location.href='/api/export_vector?'+q;},
+  version:()=>fetch('/api/version').then(r=>r.json()),
+  upload:async(kind,file,area)=>(await fetch('/api/upload_data?kind='+kind+'&area='+encodeURIComponent(area)+'&name='+encodeURIComponent(file.name),{method:'POST',body:file})).json(),
+  vector:true
+};
+const BACKEND=window.HF_BACKEND||serverBackend;
 const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{crossOrigin:true,maxZoom:19,attribution:'Esri'});
 const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{crossOrigin:true,maxZoom:19,attribution:'OSM'});
 const s2=L.tileLayer('/tile/eox/{z}/{y}/{x}.jpg',{maxZoom:14,maxNativeZoom:14,attribution:'Sentinel-2 cloudless by EOX (CC BY-NC-SA)'});
@@ -127,7 +139,7 @@ const hsDem=new HS({maxZoom:20,opacity:.55,exag:1.5,attribution:'DEM Terrarium (
 map=L.map('map',{maxZoom:20}); osm.addTo(map);
 L.control.layers({OSM:osm,'Satellite Esri':sat,'Sentinel-2 EOX':s2,OpenTopoMap:topo},{'Hillshade DEM (calcolato)':hsDem,'Hillshade Esri':hsEsri},{collapsed:false}).addTo(map);
 function loadInfo(sel){
-  return fetch('/api/info').then(r=>r.json()).then(d=>{D=d; $('case').innerHTML=''; for(const c in D) $('case').add(new Option(c,c)); if(sel&&D[sel]) $('case').value=sel; if(Object.keys(D).length) setCase();});
+  return BACKEND.info().then(d=>{D=d; $('case').innerHTML=''; for(const c in D) $('case').add(new Option(c,c)); if(sel&&D[sel]) $('case').value=sel; if(Object.keys(D).length) setCase();});
 }
 loadInfo().then(applyQuery);
 // parametri da URL, es. ?bld=1&bm=0.5&holes=1&area=10000&gap=30&buf=1&bufm=5&hmode=major  (utile per condividere una configurazione)
@@ -158,6 +170,7 @@ function setCase(){
 const l0=()=>cur.layers.find(x=>x.name==$('proc').value);
 function params(){return new URLSearchParams({case:$('case').value,layer:$('proc').value,bld:+$('bld').checked,bm:$('bpx').value,osm:$('osm').value,holes:+$('holes').checked,area:$('allint').checked?1e12:$('area').value,hmode:$('hmode').value,gap:Math.round($('gap').value/l0().res/2),buf:+$('buf').checked,bufm:$('bufpx').value,hl:+$('hl').checked})}
 function update(){
+  if(!cur) return;
   $('gapv').textContent=$('gap').value; $('bpxv').textContent=$('bpx').value; $('areav').textContent=$('allint').checked?'∞':$('area').value; $('area').disabled=$('allint').checked; $('bufv').textContent=$('bufpx').value;
   const l=cur.layers.find(x=>x.name==$('proc').value); $('bufm').textContent='= '+Math.max(1,Math.round($('bufpx').value/l.res))+' px'; $('bpxe').textContent='= '+Math.round($('bpx').value/l.res)+' px';
   clearTimeout(timer); timer=setTimeout(run,250);
@@ -166,7 +179,7 @@ async function run(){
   const my=++reqId; $('busy').style.display='inline';
   const l=cur.layers.find(x=>x.name==$('proc').value);
   try{
-    const r=await (await fetch('/api/process?'+params())).json(); if(my!==reqId) return;
+    const r=await BACKEND.process(params().toString()); if(my!==reqId) return;
     if(r.error){$('stats').textContent=r.error;return}
     lastProc={png:r.png,bounds:l.bounds};
     if(procLayer) map.removeLayer(procLayer);
@@ -196,10 +209,10 @@ $('op').oninput=()=>{const o=+$('op').value; Object.values(imgLayers).forEach(x=
 $('showb').onchange=()=>{ if(!bldLayer)return; $('showb').checked?bldLayer.addTo(map):map.removeLayer(bldLayer)};
 $('showorig').onchange=()=>showOrig(cur.layers.find(x=>x.name==$('proc').value));
 
-$('exp1').onclick=()=>{location.href='/api/export?'+params().toString()};
-$('sty').onclick=()=>{const n=$('proc').value.replace(/\.tif+$/,'').replace(/.*\//,''); location.href='/api/style?name='+encodeURIComponent(n)+'&clean='+(0)};
-$('expv').onclick=()=>{$('expv').textContent='preparo vettoriale…'; location.href='/api/export_vector?'+params().toString(); setTimeout(()=>$('expv').textContent='Vettoriale (GeoPackage) con codici',8000)};
-$('exp2').onclick=()=>{location.href='/api/export?'+params().toString()+'&clean=1'};
+$('exp1').onclick=()=>BACKEND.exportRaster(params().toString(),false);
+$('sty').onclick=()=>{const n=$('proc').value.replace(/\.tif+$/,'').replace(/.*\//,''); BACKEND.exportStyle(n,false)};
+$('expv').onclick=()=>{$('expv').textContent='preparo vettoriale…'; BACKEND.exportVector(params().toString()); setTimeout(()=>$('expv').textContent='Vettoriale (GeoPackage) con codici',8000)};
+$('exp2').onclick=()=>BACKEND.exportRaster(params().toString(),true);
 
 // ---- export mappa con legenda, nord e scala
 let lastProc=null;
@@ -367,15 +380,12 @@ $('xpng').onclick=async()=>{
     inp.addEventListener('blur',()=>finish(true));
   });
 });
-fetch('/api/version').then(r=>r.json()).then(j=>{$('ver').textContent='v'+j.version}).catch(()=>{});
+BACKEND.version().then(j=>{$('ver').textContent='v'+j.version; if(j.vector===false) $('expv').style.display='none';}).catch(()=>{});
 
 // ---- caricamento di GeoTIFF ed edifici dal computer
-fetch('/api/version').then(r=>r.json()).then(j=>{ if(j.upload) $('updet').style.display='block'; }).catch(()=>{});
+BACKEND.version().then(j=>{ if(j.upload) $('updet').style.display='block'; if(j.openUpload) $('updet').open=true; }).catch(()=>{});
 $('upr').onchange=()=>{ if(!$('upa').value&&$('upr').files[0]) $('upa').value=$('upr').files[0].name.replace(/\.[^.]+$/,'').replace(/[^\w\-]+/g,'_'); };
-async function sendFile(kind,file,area){
-  const r=await fetch('/api/upload_data?kind='+kind+'&area='+encodeURIComponent(area)+'&name='+encodeURIComponent(file.name),{method:'POST',body:file});
-  return r.json();
-}
+async function sendFile(kind,file,area){ return BACKEND.upload(kind,file,area); }
 $('upgo').onclick=async()=>{
   const f=$('upr').files[0], b=$('upb').files[0], area=($('upa').value||'').trim();
   const msg=$('upmsg'); msg.style.color='#666';

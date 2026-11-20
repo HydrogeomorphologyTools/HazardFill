@@ -9,6 +9,7 @@
 | [Metodo](metodo.md) | cosa fa ciascun criterio, come si decide «interno/esterno», ordine dei passi, esempi sintetici, limiti |
 | [Plugin QGIS](plugin-qgis.md) | installazione, algoritmi, parametri, uso da Processing/riga di comando, basi cartografiche |
 | [Pagina web locale](web-locale.md) | installazione, avvio, cartella dei dati, caricamento file, esportazioni, uso da altri computer |
+| [Versione online](versione-online.md) | la pagina su GitHub Pages: uso, limiti, differenze dalla versione locale |
 | [Formati e codici](formati-e-codici.md) | dati in ingresso, uscite, codici dei pixel modificati, metadati |
 | [Esempio Figna_test](esempio-figna-test.md) | passo-passo sui dati di prova, con immagini |
 | [Sviluppo e test](sviluppo.md) | struttura del repository, test, costruzione delle release |

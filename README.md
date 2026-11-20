@@ -6,6 +6,7 @@
 
 [![Licenza: GPL v2](https://img.shields.io/badge/licenza-GPL%20v2-blue.svg)](LICENSE)
 [![QGIS ≥ 3.22](https://img.shields.io/badge/QGIS-%E2%89%A5%203.22-93b023.svg)](docs/plugin-qgis.md)
+[![Prova online](https://img.shields.io/badge/prova-online-1f3a5f.svg)](https://hydrogeomorphologytools.github.io/HazardFill/)
 [![tests](https://github.com/HydrogeomorphologyTools/HazardFill/actions/workflows/tests.yml/badge.svg)](https://github.com/HydrogeomorphologyTools/HazardFill/actions)
 
 > ### Avvertenza
@@ -48,7 +49,7 @@ Tutti gli esempi sintetici (zone interne, varco, valore di riempimento, buffer) 
 
 ## Funzionalità
 
-* **Plugin QGIS** (algoritmi di Processing, quindi anche in batch e nei modelli grafici) e **pagina web locale** con la stessa logica e gli stessi risultati.
+* **Plugin QGIS** (algoritmi di Processing, quindi anche in batch e nei modelli grafici), **pagina web locale** e **versione online di prova** (nel browser, senza installazione) con la stessa logica e gli stessi risultati.
 * **Edifici**: da shapefile, GeoPackage o GeoJSON (qualsiasi CRS), oppure **ricavati/integrati da OpenStreetMap** (un edificio OSM è aggiunto solo se meno del 20% della sua superficie cade su edifici già presenti).
 * **Tracciabilità**: ogni pixel modificato ha un **codice** (`classe + 10 × criterio`: 11-13 edifici, 21-23 zone interne, 31-33 buffer).
 * **Esporta mappatura**: raster con codici, raster pulito (0-3) con stile QGIS `.qml`, **GeoPackage vettoriale** a 4 livelli (`originale`, `omogeneizzata`, `mappa_con_codici`, `modifiche`) con stile incorporato.
@@ -60,6 +61,15 @@ Tutti gli esempi sintetici (zone interne, varco, valore di riempimento, buffer) 
 <p align="center"><img src="docs/images/interfaccia_web_riempimenti.jpg" width="95%" alt="Interfaccia della pagina web"></p>
 
 ## Installazione
+
+### Prova online, senza installare nulla
+**https://hydrogeomorphologytools.github.io/HazardFill/** → «Prova la versione online». Si apre nel browser, puoi caricare un tuo GeoTIFF (e gli edifici) oppure usare l'esempio;
+**il calcolo avviene sul tuo computer** e i file non vengono inviati a nessun server.
+
+> **Per provare, non per un uso intensivo.** La versione online è pensata per provare lo strumento con dati non troppo pesanti, non per un uso massivo.
+> Per lavorare con regolarità, su dati grandi o per i risultati ufficiali, la scelta migliore per il singolo utente è il **plugin QGIS**. Il vettoriale (GeoPackage) non è disponibile online.
+
+Dettagli e limiti: [`docs/versione-online.md`](docs/versione-online.md).
 
 ### Plugin QGIS (≥ 3.22)
 1. Scarica `HazardFill_plugin_<versione>.zip` dalle [release](https://github.com/HydrogeomorphologyTools/HazardFill/releases).
@@ -108,7 +118,7 @@ La cartella [`examples/Figna_test`](examples/Figna_test) contiene un raster e gl
 
 ## Documentazione
 
-[`docs/`](docs/README.md): [metodo](docs/metodo.md) · [plugin QGIS](docs/plugin-qgis.md) · [pagina web locale](docs/web-locale.md) · [formati e codici](docs/formati-e-codici.md) · [esempio Figna_test](docs/esempio-figna-test.md) · [sviluppo e test](docs/sviluppo.md).
+[`docs/`](docs/README.md): [metodo](docs/metodo.md) · [plugin QGIS](docs/plugin-qgis.md) · [pagina web locale](docs/web-locale.md) · [versione online](docs/versione-online.md) · [formati e codici](docs/formati-e-codici.md) · [esempio Figna_test](docs/esempio-figna-test.md) · [sviluppo e test](docs/sviluppo.md).
 
 ## Come citare
 

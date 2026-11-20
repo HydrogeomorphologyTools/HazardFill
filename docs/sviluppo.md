@@ -12,6 +12,7 @@ HazardFill/
 │   ├── help/               pagina «Help – utilizzo» (generata da tools/)
 │   └── metadata.txt
 ├── web/                    server Python + pagina (index.html) e script di avvio
+├── docs/app/               versione online (GitHub Pages): generata da web/index.html + backend nel browser
 ├── examples/Figna_test/    dati di prova
 ├── docs/                   documentazione e immagini
 ├── tests/                  test automatici (pytest) e test del plugin con QGIS
@@ -45,6 +46,10 @@ L'Help è un unico HTML generato dal codice (gli esempi sono **calcolati con `co
 ```bash
 python tools/build_help.py          # sorgente tools/help_src.html -> plugin/hazardfill/help/help_utilizzo.html
 python tools/make_figures.py        # figure sintetiche in docs/images
+```
+
+```bash
+python tools/build_pages.py       # rigenera docs/app (pagina, copia di core.py, esempio)
 ```
 
 `tools/make_plugin_figure.py` genera con QGIS l'immagine di esempio dell'esportazione del plugin.
