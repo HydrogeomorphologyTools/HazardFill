@@ -1,0 +1,8 @@
+Cartella dei dati della pagina web (facoltativa).
+
+Una sottocartella per area, ad esempio:
+  dati/MiaArea/Mappa_Pericolo.tif
+  dati/MiaArea/Edifici/edifici.shp        (facoltativo: .shp, .gpkg o .geojson)
+
+I raster devono essere a una banda, in un CRS proiettato (metri), con le sole classi 0, 1, 2, 3 (nodata = 0).
+In alternativa puoi caricare i file direttamente dalla pagina ("Carica i tuoi dati").

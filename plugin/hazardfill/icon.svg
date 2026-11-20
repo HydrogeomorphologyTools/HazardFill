@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <title>HazardFill (HF)</title>
+  <defs>
+    <clipPath id="hf-c"><rect width="128" height="128" rx="26"/></clipPath>
+  </defs>
+  <g clip-path="url(#hf-c)">
+    <rect width="128" height="128" fill="#16294a"/>
+    <!-- colata su conoide: ogni classe e' disegnata per intero (canale + ventaglio), cosi' i colori si collegano -->
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <!-- giallo: canale e ventaglio -->
+      <path d="M3 3 C12 10 20 18 34 38" stroke="#ffeb3b" stroke-width="17"/>
+      <path d="M20 22 C46 22 94 34 112 56 C124 70 118 84 108 90 C100 100 86 104 74 100 C62 100 52 94 44 84 C30 70 18 50 20 22 Z" fill="#ffeb3b" stroke="none"/>
+      <!-- arancio -->
+      <path d="M3 3 C12 10 20 18 34 38" stroke="#ff8c00" stroke-width="10"/>
+      <path d="M29 30 C50 32 88 42 100 58 C108 68 104 78 96 84 C88 92 78 92 70 88 C60 86 52 80 46 72 C36 60 29 46 29 30 Z" fill="#ff8c00" stroke="none"/>
+      <!-- rosso -->
+      <path d="M3 3 C12 10 20 18 34 38" stroke="#d62828" stroke-width="4"/>
+      <path d="M31 34 C50 40 76 52 86 64 C92 72 86 78 78 78 C68 78 58 70 50 62 C42 54 33 46 31 34 Z" fill="#d62828" stroke="none"/>
+    </g>
+    <text x="118" y="30" text-anchor="end" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-style="italic" font-size="22" letter-spacing="1" fill="#ffffff">HF</text>
+    <!-- tre strisce (blu, azzurro, rosso): livrea storica di un certo Deltone -->
+    <g transform="rotate(-4 64 114)">
+      <rect x="-10" y="104" width="150" height="5" fill="#1a6fd1"/>
+      <rect x="-10" y="111" width="150" height="5" fill="#8fd3f4"/>
+      <rect x="-10" y="118" width="150" height="5" fill="#d62828"/>
+    </g>
+  </g>
+</svg>

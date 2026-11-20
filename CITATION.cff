@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "Se usi HazardFill in un lavoro, citalo come indicato qui."
+title: "HazardFill (HF): pre-screening delle mappe di pericolosità (chiusura delle aree prive di valore)"
+type: software
+version: 1.0.0
+date-released: 2026-11-20
+license: GPL-2.0-only
+repository-code: "https://github.com/HydrogeomorphologyTools/HazardFill"
+abstract: >-
+  HazardFill (HF) è un ausilio di pre-screening per i gestori del territorio nella fase di valutazione
+  finale della mappatura del pericolo. Su mappe a classi (0-3) assegna agli edifici la classe massima
+  circostante, chiude le zone interne prive di valore e aggiunge un buffer graduato sul margine;
+  esporta raster e vettoriali con codici di modifica. Disponibile come plugin QGIS e come pagina web locale.
+keywords:
+  - hazard mapping
+  - debris flow
+  - QGIS plugin
+  - pre-screening
+authors:
+  - family-names: Crema
+    given-names: Stefano
+    affiliation: "CNR-GEO (Istituto di Geoscienze)"
+  - family-names: Cavalli
+    given-names: Marco
+    affiliation: "CNR-GEO (Istituto di Geoscienze)"
+  - family-names: Sarretta
+    given-names: Alessandro
+    affiliation: "CNR-GEO (Istituto di Geoscienze)"

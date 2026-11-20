@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HazardFill (HF) – chiusura buchi nelle mappe di pericolosità</title><link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+ html,body{margin:0;height:100%;font:13px system-ui,Segoe UI,sans-serif;color:#222}
+ #app{display:flex;height:100%}
+ #side{width:340px;overflow:auto;padding:10px 12px;box-sizing:border-box;background:#f7f7f8;border-right:1px solid #ccc}
+ #map{flex:1}
+ h3{margin:12px 0 4px;font-size:13px;border-bottom:1px solid #ccc;padding-bottom:2px}
+ label{display:block;margin:3px 0}
+ .row{display:flex;align-items:center;gap:6px}
+ .row input[type=range]{flex:1}
+ .box{background:#fff;border:1px solid #ddd;border-radius:4px;padding:6px 8px;margin:6px 0}
+ .sw{display:inline-block;width:12px;height:12px;border:1px solid #555;vertical-align:-2px;margin-right:4px}
+ table{border-collapse:collapse;width:100%} td,th{padding:1px 4px;text-align:right} th:first-child,td:first-child{text-align:left}
+ #busy{color:#b00;display:none} small{color:#666}
+ select{max-width:100%}
+
+ .numv{cursor:text;border-bottom:1px dotted #888}
+ .numv:hover{background:#eef6ff}
+ .numi{width:64px;font:inherit}
+</style></head><body><div id="app">
+<div id="side">
+ <div style="display:flex;align-items:center;gap:10px"><img src="/logo.svg" alt="HF" width="44" height="44"><div><b style="font-size:17px">HazardFill <span style="color:#1f3a5f">· HF</span></b> <small id="ver"></small><br><small>chiusura buchi nelle mappe di pericolosità</small></div></div><small style="display:block;margin-top:4px">nodata assimilato a 0 &middot; i raster sono quelli originali &middot; <a href="/help" target="_blank"><b>Help &ndash; utilizzo</b></a></small><small style="display:block;margin-top:4px;color:#8a5a00">Ausilio di pre-screening per i gestori del territorio: non è una mappatura di pericolosità né sostituisce la valutazione di esperti.</small>
+ <h3>Caso</h3><select id="case"></select>
+ <details id="updet" style="display:none;margin-top:6px"><summary><b>Carica i tuoi dati</b></summary>
+  <div class="box"><small>GeoTIFF a una banda, in CRS proiettato (metri), con le sole classi 0-3 (nodata = 0). Edifici (facoltativi): shapefile compresso .zip, GeoPackage o GeoJSON. I file restano sul computer su cui gira il server.</small>
+   <div class="row">nome area <input id="upa" type="text" placeholder="es. MiaArea" style="flex:1"></div>
+   <div class="row">GeoTIFF <input id="upr" type="file" accept=".tif,.tiff" style="flex:1"></div>
+   <div class="row">edifici <input id="upb" type="file" accept=".zip,.gpkg,.geojson,.json" style="flex:1"></div>
+   <div class="row" style="margin-top:4px"><button id="upgo">Carica</button></div><small id="upmsg"></small></div></details>
+ <h3>Layer originali (visualizza)</h3><div id="layers"></div>
+ <label class="row">Opacità <input id="op" type="range" min="0.1" max="1" step="0.05" value="0.8"></label>
+ <label><input type="checkbox" id="showb" checked> edifici (contorni)</label>
+ <h3>Elaborazione</h3>
+ <label>Layer da elaborare <select id="proc"></select></label>
+ <div class="box"><label><b><input type="checkbox" id="bld" checked> 0. Edifici</b></label>
+  <small>l'edificio prende il valore max che lo tocca o che è entro la tolleranza (m) dal bordo</small>
+  <div class="row">tolleranza <input id="bpx" type="range" min="0" max="20" step="0.5" value="0"><b id="bpxv">0</b> m <small id="bpxe"></small></div>
+  <div class="row">sorgente <select id="osm" style="flex:1"><option value="0">solo edifici forniti</option><option value="1">forniti + integra da OSM</option><option value="2">solo OSM</option></select></div>
+  <small>OSM: gli edifici vengono scaricati da OpenStreetMap (Overpass) per l'estensione del raster; quelli già coperti dai tuoi (&ge;20% di sovrapposizione) non vengono aggiunti. La prima volta può richiedere qualche decina di secondi.</small></div>
+ <div class="box"><label><b><input type="checkbox" id="holes"> 1. Chiusura zone interne</b></label>
+  <small>zone a 0 interne al dominio (non collegate al bordo del raster), circondate da valori &gt;0, con area ≤ A</small>
+  <div class="row">A m² <input id="area" type="range" min="10" max="20000" step="10" value="10"><b id="areav">10</b></div>
+  <div class="row">varco sigillabile <input id="gap" type="range" min="0" max="150" step="5" value="0"><b id="gapv">0</b> m</div>
+  <small>0 = solo zone non collegate al bordo; &gt;0 = anche zone con aperture strette (&lt; varco) verso l'esterno</small>
+  <label><input type="checkbox" id="allint"> <b>chiudi TUTTE le zone interne</b> <small>(nessun limite di area)</small></label>
+  <label>valore di riempimento <select id="hmode"><option value="max">massimo del contorno</option><option value="major" selected>maggioranza del contorno</option><option value="near">pixel valido più vicino (sfumato)</option></select></label></div>
+ <div class="box"><label><b><input type="checkbox" id="buf"> 2. Buffer graduato su classe 0</b></label>
+  <small>fascia (m) su classe 0 adiacente a valori validi, con valore −1 grado (min 1); non sovrascrive pixel validi</small>
+  <div class="row">larghezza <input id="bufpx" type="range" min="0.5" max="50" step="0.5" value="1"><b id="bufv">1</b> m <small id="bufm"></small></div></div>
+ <label><input type="checkbox" id="hl" checked> evidenzia pixel modificati (tratteggio scuro)</label>
+ <label><input type="checkbox" id="showorig"> sovrapponi originale (confronto) </label>
+ <span id="busy">calcolo…</span>
+ <h3>Statistiche</h3><div id="stats" class="box"></div>
+ <h3>Esporta mappa (immagine)</h3>
+ <div class="box"><small>PNG con titolo, legenda, freccia del nord e scala, come la vedi ora (base, hillshade, layer, edifici).</small>
+  <div class="row"><label style="flex:1">cosa <select id="xmode"><option value="screen">come a schermo</option><option value="orig">solo mappa originale</option><option value="elab">solo mappa con riempimenti</option></select></label></div>
+  <div class="row"><input id="xtitle" type="text" placeholder="titolo (vuoto = automatico)" style="flex:1"></div>
+  <div class="row" style="margin-top:4px"><button id="xpng">Scarica immagine PNG</button></div><small id="xmsg"></small></div>
+ <h3>Esporta mappatura</h3>
+ <div class="box"><small>Raster (GeoTIFF uint8 nella griglia originale) o vettoriale (GeoPackage) della mappatura elaborata, con i parametri attuali scritti nei metadati.</small>
+  <div class="row" style="margin-top:4px"><button id="exp1">Con codici di modifica</button><button id="exp2">Pulito (1-3)</button></div>
+  <div class="row" style="margin-top:4px"><button id="sty">Stile QGIS (.qml)</button><button id="expv">Vettoriale (GeoPackage) con codici</button></div>
+  <small>Il GeoPackage contiene 4 livelli (originale, omogeneizzata, mappa_con_codici, modifiche) con gli stessi codici del raster e lo stile QGIS incorporato; l'esportazione può richiedere decine di secondi.</small><br><small>Per colori ed etichette del raster in QGIS scarica anche lo .qml e salvalo con lo stesso nome del .tif, nella stessa cartella. Il GeoTIFF ha nodata = 0.</small></div>
+ <h3>Legenda e codici</h3>
+ <table id="leg">
+  <tr><th>codice</th><th>significato</th></tr>
+  <tr><td><span class="sw" style="background:#eee"></span>0</td><td style="text-align:left">nodata / nessun pericolo</td></tr>
+  <tr><td><span class="sw" style="background:#ffeb3b"></span>1</td><td style="text-align:left">pericolo basso (originale)</td></tr>
+  <tr><td><span class="sw" style="background:#ff8c00"></span>2</td><td style="text-align:left">pericolo medio (originale)</td></tr>
+  <tr><td><span class="sw" style="background:#d62828"></span>3</td><td style="text-align:left">pericolo alto (originale)</td></tr>
+  <tr><td><span class="sw" style="background:repeating-linear-gradient(45deg,#ffeb3b 0 3px,#b7a92a 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#ff8c00 0 3px,#b76400 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#d62828 0 3px,#9a1c1c 3px 6px)"></span><br>11 12 13</td><td style="text-align:left">valore 1/2/3 assegnato da <b>edifici</b></td></tr>
+  <tr><td><span class="sw" style="background:repeating-linear-gradient(45deg,#ffeb3b 0 3px,#8c8120 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#ff8c00 0 3px,#8c4d00 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#d62828 0 3px,#751616 3px 6px)"></span><br>21 22 23</td><td style="text-align:left">valore 1/2/3 assegnato da <b>zone interne</b></td></tr>
+  <tr><td><span class="sw" style="background:repeating-linear-gradient(45deg,#ffeb3b 0 3px,#605916 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#ff8c00 0 3px,#603500 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#d62828 0 3px,#510f0f 3px 6px)"></span><br>31 32 33</td><td style="text-align:left">valore 1/2/3 assegnato da <b>buffer graduato</b></td></tr>
+ </table>
+ <small>Cifra delle decine = passo che ha modificato il pixel; unità = livello di pericolo. In mappa i pixel modificati sono tratteggiati con il colore del codice (più scuro del livello); nel file esportato "con codici" hanno 11–33.</small>
+</div>
+<div id="map"></div></div>
+<script>
+let D, map, base, imgLayers={}, procLayer=null, bldLayer=null, origLayer=null, cur, timer, reqId=0;
+const $=id=>document.getElementById(id);
+const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{crossOrigin:true,maxZoom:19,attribution:'Esri'});
+const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{crossOrigin:true,maxZoom:19,attribution:'OSM'});
+const s2=L.tileLayer('/tile/eox/{z}/{y}/{x}.jpg',{maxZoom:14,maxNativeZoom:14,attribution:'Sentinel-2 cloudless by EOX (CC BY-NC-SA)'});
+const topo=L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png',{crossOrigin:true,maxZoom:17,attribution:'OpenTopoMap (CC-BY-SA)'});
+const hsEsri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',{crossOrigin:true,maxZoom:19,maxNativeZoom:15,opacity:.6,attribution:'Esri hillshade'});
+// hillshade multi-direzionale calcolato dal DEM Terrarium (AWS Open Data), con ombra e luce da 4 direzioni
+const HS=L.GridLayer.extend({
+ createTile(c,done){
+  const t=document.createElement('canvas'); t.width=t.height=256;
+  const z=Math.min(c.z,14), f=Math.pow(2,c.z-z);          // sopra z14 si ingrandisce
+  const tx=Math.floor(c.x/f), ty=Math.floor(c.y/f);
+  const img=new Image(); img.crossOrigin='anonymous';
+  img.onload=()=>{
+   const w=document.createElement('canvas'); w.width=w.height=256; const wx=w.getContext('2d',{willReadFrequently:true});
+   wx.drawImage(img,0,0); const d=wx.getImageData(0,0,256,256).data;
+   const E=new Float32Array(256*256); for(let i=0;i<E.length;i++) E[i]=d[i*4]*256+d[i*4+1]+d[i*4+2]/256-32768;
+   const lat=map.getCenter().lat*Math.PI/180, res=40075016.686*Math.cos(lat)/(256*Math.pow(2,z));
+   const exag=+(this.options.exag||1.5), az=[315,45,225,135].map(a=>a*Math.PI/180), wt=[.45,.2,.2,.15], zen=45*Math.PI/180;
+   const out=t.getContext('2d'), o=out.createImageData(256,256), H=new Uint8ClampedArray(256*256);
+   for(let y=1;y<255;y++)for(let x=1;x<255;x++){
+    const i=y*256+x;
+    const dx=((E[i-255]+2*E[i+1]+E[i+257])-(E[i-257]+2*E[i-1]+E[i+255]))/(8*res)*exag;
+    const dy=((E[i+255]+2*E[i+256]+E[i+257])-(E[i-257]+2*E[i-256]+E[i-255]))/(8*res)*exag;
+    const sl=Math.atan(Math.hypot(dx,dy)), as=Math.atan2(dy,-dx); let v=0;
+    for(let k=0;k<4;k++) v+=wt[k]*Math.max(0,Math.cos(zen)*Math.cos(sl)+Math.sin(zen)*Math.sin(sl)*Math.cos(az[k]-as));
+    H[i]=Math.min(255,v*255*1.25);
+   }
+   for(let k=0;k<256;k++){H[k]=H[256+k];H[255*256+k]=H[254*256+k];H[k*256]=H[k*256+1];H[k*256+255]=H[k*256+254];}
+   for(let i=0;i<H.length;i++){o.data[i*4]=o.data[i*4+1]=o.data[i*4+2]=H[i];o.data[i*4+3]=255;}
+   out.putImageData(o,0,0);
+   if(f>1){ // ritaglia e ingrandisce la porzione relativa
+    const sx=(c.x%f)*256/f, sy=(c.y%f)*256/f, tmp=document.createElement('canvas'); tmp.width=tmp.height=256;
+    tmp.getContext('2d').drawImage(t,sx,sy,256/f,256/f,0,0,256,256); t.getContext('2d').drawImage(tmp,0,0);
+   }
+   done(null,t);
+  };
+  img.onerror=()=>done(null,t);
+  img.src=`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${tx}/${ty}.png`;
+  return t;
+ }
+});
+const hsDem=new HS({maxZoom:20,opacity:.55,exag:1.5,attribution:'DEM Terrarium (AWS Open Data) - hillshade calcolato'});
+map=L.map('map',{maxZoom:20}); osm.addTo(map);
+L.control.layers({OSM:osm,'Satellite Esri':sat,'Sentinel-2 EOX':s2,OpenTopoMap:topo},{'Hillshade DEM (calcolato)':hsDem,'Hillshade Esri':hsEsri},{collapsed:false}).addTo(map);
+function loadInfo(sel){
+  return fetch('/api/info').then(r=>r.json()).then(d=>{D=d; $('case').innerHTML=''; for(const c in D) $('case').add(new Option(c,c)); if(sel&&D[sel]) $('case').value=sel; if(Object.keys(D).length) setCase();});
+}
+loadInfo().then(applyQuery);
+// parametri da URL, es. ?bld=1&bm=0.5&holes=1&area=10000&gap=30&buf=1&bufm=5&hmode=major  (utile per condividere una configurazione)
+function applyQuery(){
+  const q=new URLSearchParams(location.search); if(![...q.keys()].length) return;
+  const set=(id,k,num)=>{ if(!q.has(k)) return; const el=$(id);
+    if(el.type==='checkbox') el.checked=q.get(k)==='1'; else { if(num&&+q.get(k)>+el.max) el.max=q.get(k); el.value=q.get(k); } };
+  set('bld','bld'); set('bpx','bm',1); set('osm','osm'); set('holes','holes'); set('area','area',1); set('gap','gap',1);
+  set('allint','all'); set('hmode','hmode'); set('buf','buf'); set('bufpx','bufm',1); set('hl','hl');
+  update();
+}
+$('case').onchange=setCase;
+function setCase(){
+  cur=D[$('case').value];
+  Object.values(imgLayers).forEach(l=>map.removeLayer(l)); imgLayers={};
+  if(procLayer){map.removeLayer(procLayer);procLayer=null} if(bldLayer) map.removeLayer(bldLayer); if(origLayer){map.removeLayer(origLayer);origLayer=null}
+  $('layers').innerHTML=''; $('proc').innerHTML='';
+  cur.layers.forEach((l,i)=>{
+    const o=L.imageOverlay('data:image/png;base64,'+l.png,l.bounds,{opacity:+$('op').value,interactive:false}); imgLayers[l.name]=o;
+    const lab=document.createElement('label'); lab.innerHTML=`<input type="checkbox" data-n="${l.name}"> ${l.name} <small>(${l.res.toFixed(1)} m)</small>`;
+    lab.firstChild.onchange=e=>{e.target.checked?o.addTo(map):map.removeLayer(o)}; $('layers').appendChild(lab);
+    $('proc').add(new Option(l.name,l.name));
+  });
+  $('proc').value=cur.default;
+  if(cur.buildings){bldLayer=L.geoJSON(cur.buildings,{style:{color:'#00e5ff',weight:1,fill:false,interactive:false}}); if($('showb').checked) bldLayer.addTo(map);}
+  map.fitBounds(cur.bounds); update();
+}
+const l0=()=>cur.layers.find(x=>x.name==$('proc').value);
+function params(){return new URLSearchParams({case:$('case').value,layer:$('proc').value,bld:+$('bld').checked,bm:$('bpx').value,osm:$('osm').value,holes:+$('holes').checked,area:$('allint').checked?1e12:$('area').value,hmode:$('hmode').value,gap:Math.round($('gap').value/l0().res/2),buf:+$('buf').checked,bufm:$('bufpx').value,hl:+$('hl').checked})}
+function update(){
+  $('gapv').textContent=$('gap').value; $('bpxv').textContent=$('bpx').value; $('areav').textContent=$('allint').checked?'∞':$('area').value; $('area').disabled=$('allint').checked; $('bufv').textContent=$('bufpx').value;
+  const l=cur.layers.find(x=>x.name==$('proc').value); $('bufm').textContent='= '+Math.max(1,Math.round($('bufpx').value/l.res))+' px'; $('bpxe').textContent='= '+Math.round($('bpx').value/l.res)+' px';
+  clearTimeout(timer); timer=setTimeout(run,250);
+}
+async function run(){
+  const my=++reqId; $('busy').style.display='inline';
+  const l=cur.layers.find(x=>x.name==$('proc').value);
+  try{
+    const r=await (await fetch('/api/process?'+params())).json(); if(my!==reqId) return;
+    if(r.error){$('stats').textContent=r.error;return}
+    lastProc={png:r.png,bounds:l.bounds};
+    if(procLayer) map.removeLayer(procLayer);
+    procLayer=L.imageOverlay('data:image/png;base64,'+r.png,l.bounds,{opacity:+$('op').value,interactive:false,zIndex:500}).addTo(map);
+    if(bldLayer&&$('showb').checked) bldLayer.bringToFront();
+    showStats(r.stats); showOrig(l);
+  }finally{ if(my===reqId) $('busy').style.display='none'; }
+}
+function showOrig(l){
+  if(origLayer){map.removeLayer(origLayer);origLayer=null}
+  if($('showorig').checked){origLayer=L.imageOverlay('data:image/png;base64,'+l.png,l.bounds,{opacity:+$('op').value,interactive:false}).addTo(map);origLayer.bringToBack();}
+}
+function showStats(s){
+  const a=s.px_area, f=v=>(v*a).toFixed(0), n=['nodata (0)','1 basso','2 medio','3 alto'];
+  let h='<table><tr><th>m²</th><th>orig.</th><th>elab.</th><th>Δ</th></tr>';
+  for(let k=0;k<4;k++) h+=`<tr><td>${n[k]}</td><td>${f(s.orig[k])}</td><td>${f(s.new[k])}</td><td>${(s.new[k]-s.orig[k])*a>=0?'+':''}${f(s.new[k]-s.orig[k])}</td></tr>`;
+  h+='</table><br>';
+  if(s.bld_total!==undefined) h+=`edifici modificati: <b>${s.bld_changed}</b> / ${s.bld_total}<br>`;
+  if(s.holes_closed!==undefined) h+=`zone interne chiuse: <b>${s.holes_closed}</b><br>`;
+  if(s.buf_px!==undefined) h+=`pixel di buffer: <b>${s.buf_px}</b> (${f(s.buf_px)} m²)<br>`;
+  h+=`<small>pixel modificati per passo (edifici/buchi/buffer): ${s.mod_by_step.join(' / ')}</small>`;
+  $('stats').innerHTML=h;
+}
+['bld','bpx','osm','holes','area','gap','allint','hmode','buf','bufpx','hl','proc'].forEach(i=>$(i).addEventListener('input',update));
+$('proc').addEventListener('change',update);
+$('op').oninput=()=>{const o=+$('op').value; Object.values(imgLayers).forEach(x=>x.setOpacity(o)); procLayer&&procLayer.setOpacity(o); origLayer&&origLayer.setOpacity(o)};
+$('showb').onchange=()=>{ if(!bldLayer)return; $('showb').checked?bldLayer.addTo(map):map.removeLayer(bldLayer)};
+$('showorig').onchange=()=>showOrig(cur.layers.find(x=>x.name==$('proc').value));
+
+$('exp1').onclick=()=>{location.href='/api/export?'+params().toString()};
+$('sty').onclick=()=>{const n=$('proc').value.replace(/\.tif+$/,'').replace(/.*\//,''); location.href='/api/style?name='+encodeURIComponent(n)+'&clean='+(0)};
+$('expv').onclick=()=>{$('expv').textContent='preparo vettoriale…'; location.href='/api/export_vector?'+params().toString(); setTimeout(()=>$('expv').textContent='Vettoriale (GeoPackage) con codici',8000)};
+$('exp2').onclick=()=>{location.href='/api/export?'+params().toString()+'&clean=1'};
+
+// ---- export mappa con legenda, nord e scala
+let lastProc=null;
+function loadImg(src){return new Promise((ok,ko)=>{const i=new Image(); i.onload=()=>ok(i); i.onerror=ko; i.src=src;});}
+function niceScale(){
+  const lat=map.getCenter().lat*Math.PI/180, mpp=156543.03392*Math.cos(lat)/Math.pow(2,map.getZoom());
+  const opts=[100,200,500,1000,2000,5000,10000,20000,50000,100000]; let m=opts[0];
+  for(const o of opts){ if(o/mpp<=95) m=o; }
+  return {m, px:m/mpp, mpp};
+}
+async function exportMap(mode,title,withTiles){
+  const S=150/96, mc=document.getElementById('map'), W=mc.clientWidth, Hm=mc.clientHeight, TOP=62, BOT=22;
+  const cv=document.createElement('canvas'); cv.width=W*S; cv.height=(Hm+TOP+BOT)*S; const g=cv.getContext('2d');
+  g.scale(S,S); g.fillStyle='#fff'; g.fillRect(0,0,W,Hm+TOP+BOT);
+  g.save(); g.translate(0,TOP); g.beginPath(); g.rect(0,0,W,Hm); g.clip();
+  g.fillStyle='#e8e8e8'; g.fillRect(0,0,W,Hm);
+  const mr=mc.getBoundingClientRect();
+  if(withTiles){
+    document.querySelectorAll('#map .leaflet-tile-pane .leaflet-layer').forEach(lay=>{
+      const op=parseFloat(getComputedStyle(lay).opacity); if(!(op>0)) return;
+      const tmp=document.createElement('canvas'); tmp.width=W*S; tmp.height=Hm*S; const tg=tmp.getContext('2d'); tg.scale(S,S);
+      lay.querySelectorAll('.leaflet-tile').forEach(t=>{
+        if(t.tagName==='IMG'&&!(t.complete&&t.naturalWidth)) return;
+        const r=t.getBoundingClientRect();
+        try{tg.drawImage(t,r.left-mr.left-0.5,r.top-mr.top-0.5,r.width+1,r.height+1);}catch(e){}
+      });
+      g.globalAlpha=op; g.drawImage(tmp,0,0,W,Hm); g.globalAlpha=1;
+    });
+  }
+  // sorgenti raster (png + bounds)
+  const op=+$('op').value, srcs=[]; const l=cur.layers.find(x=>x.name==$('proc').value);
+  if(mode==='orig') srcs.push({png:l.png,b:l.bounds,hl:false});
+  else if(mode==='elab'){ if(lastProc) srcs.push({png:lastProc.png,b:lastProc.bounds,hl:true}); }
+  else{
+    cur.layers.forEach(x=>{ if(imgLayers[x.name]&&map.hasLayer(imgLayers[x.name])) srcs.push({png:x.png,b:x.bounds,hl:false}); });
+    if(origLayer&&map.hasLayer(origLayer)) srcs.push({png:l.png,b:l.bounds,hl:false});
+    if(lastProc&&procLayer&&map.hasLayer(procLayer)) srcs.push({png:lastProc.png,b:lastProc.bounds,hl:true});
+  }
+  g.imageSmoothingEnabled=false;
+  for(const s of srcs){
+    const im=await loadImg('data:image/png;base64,'+s.png);
+    const a=map.latLngToContainerPoint(L.latLng(s.b[1][0],s.b[0][1])), b=map.latLngToContainerPoint(L.latLng(s.b[0][0],s.b[1][1]));
+    g.globalAlpha=op; g.drawImage(im,a.x,a.y,b.x-a.x,b.y-a.y); g.globalAlpha=1;
+  }
+  g.imageSmoothingEnabled=true;
+  // edifici: contorni disegnati dalle coordinate geografiche (stessa proiezione della mappa)
+  const showB=!!(cur.buildings&&bldLayer&&map.hasLayer(bldLayer));
+  if(showB){
+    g.strokeStyle='#00e5ff'; g.lineWidth=1.2; g.beginPath();
+    const ring=r=>{ r.forEach((c,i)=>{ const p=map.latLngToContainerPoint(L.latLng(c[1],c[0])); i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y); }); g.closePath(); };
+    cur.buildings.features.forEach(f=>{
+      const gm=f.geometry; if(!gm) return;
+      const polys=gm.type==='Polygon'?[gm.coordinates]:(gm.type==='MultiPolygon'?gm.coordinates:[]);
+      polys.forEach(pl=>pl.forEach(ring));
+    });
+    g.stroke();
+  }
+  const showProc=srcs.some(s=>s.hl), showHl=showProc&&$('hl').checked;
+  const K=2, FONT='system-ui,Arial';
+  const BASE={1:[255,235,59],2:[255,140,0],3:[214,40,40]}, FF={1:.72,2:.55,3:.38};
+  const rgb=(c,f)=>'rgb('+c.map(v=>Math.round(v*(f||1))).join(',')+')';
+  const hatchSw=(x,y,w,hh,k,st)=>{
+    g.save(); g.beginPath(); g.rect(x,y,w,hh); g.clip(); g.fillStyle=rgb(BASE[k]); g.fillRect(x,y,w,hh);
+    g.strokeStyle=rgb(BASE[k],FF[st]); g.lineWidth=2.2;
+    for(let q=-hh;q<w+hh;q+=4){g.beginPath(); g.moveTo(x+q,y+hh); g.lineTo(x+q+hh,y); g.stroke();}
+    g.restore(); g.strokeStyle='#666'; g.lineWidth=.8; g.strokeRect(x+.5,y+.5,w,hh);
+  };
+  // scala (in basso a sinistra, ingrandita K volte)
+  const sc=niceScale(), half=sc.px/2, sbw=sc.px+34;
+  g.save(); g.translate(12,Hm-12-32*K); g.scale(K,K);
+  g.fillStyle='rgba(255,255,255,.88)'; g.fillRect(0,0,sbw,32);
+  g.strokeStyle='#000'; g.lineWidth=1; g.fillStyle='#000'; g.font='11px '+FONT;
+  const bx=10, by=21;
+  g.fillRect(bx,by,half,5); g.strokeRect(bx+.5,by+.5,sc.px,5); g.fillStyle='#fff'; g.fillRect(bx+half,by+1,half-.5,4); g.fillStyle='#000';
+  const unit=sc.m>=1000?'km':'m', fv=v=>String(sc.m>=1000?v/1000:v).replace('.',',');
+  g.textAlign='center'; g.fillText('0',bx,by-5); g.fillText(fv(sc.m/2),bx+half,by-5); g.fillText(fv(sc.m)+' '+unit,bx+sc.px,by-5);
+  g.restore();
+  // nord (in alto a destra)
+  g.save(); g.translate(W-12-38*K,12); g.scale(K,K);
+  g.fillStyle='rgba(255,255,255,.88)'; g.fillRect(0,0,38,64);
+  const nx=19, ny=8;
+  g.fillStyle='#000'; g.beginPath(); g.moveTo(nx,ny); g.lineTo(nx+9,ny+34); g.lineTo(nx,ny+27); g.lineTo(nx-9,ny+34); g.closePath(); g.fill();
+  g.fillStyle='#fff'; g.beginPath(); g.moveTo(nx,ny+4); g.lineTo(nx-6,ny+31); g.lineTo(nx,ny+26); g.closePath(); g.fill();
+  g.fillStyle='#000'; g.font='bold 14px '+FONT; g.textAlign='center'; g.fillText('N',nx,ny+50);
+  g.restore();
+  // legenda (in basso a destra, ingrandita K volte). Codici 11-33 solo per i passi selezionati.
+  const steps=[]; if(showHl){ if($('bld').checked) steps.push([1,'edifici']); if($('holes').checked) steps.push([2,'zone interne']); if($('buf').checked) steps.push([3,'buffer']); }
+  const lines=[['title','Pericolo'],['sw',1,'basso'],['sw',2,'medio'],['sw',3,'alto']];
+  if(steps.length){ lines.push(['title2','Valore assegnato da']); steps.forEach(s=>lines.push(['codes',s[0],s[1]])); }
+  if(showB) lines.push(['line','edifici (contorni)']);
+  const LW=176, LH=12+lines.length*18;
+  g.save(); g.translate(W-12-LW*K,Hm-12-LH*K); g.scale(K,K);
+  g.fillStyle='rgba(255,255,255,.93)'; g.strokeStyle='#888'; g.lineWidth=1; g.fillRect(0,0,LW,LH); g.strokeRect(.5,.5,LW,LH);
+  g.textAlign='left'; let yy=19;
+  lines.forEach(Li=>{
+    g.fillStyle='#000';
+    if(Li[0]==='title'){g.font='bold 12px '+FONT; g.fillText(Li[1],10,yy);}
+    else if(Li[0]==='title2'){g.font='bold 11px '+FONT; g.fillText(Li[1],10,yy);}
+    else if(Li[0]==='sw'){g.fillStyle=rgb(BASE[Li[1]]); g.fillRect(10,yy-11,16,12); g.strokeStyle='#666'; g.lineWidth=.8; g.strokeRect(10.5,yy-10.5,16,12); g.fillStyle='#000'; g.font='12px '+FONT; g.fillText(Li[2],34,yy);}
+    else if(Li[0]==='codes'){
+      for(let k=1;k<=3;k++) hatchSw(10+(k-1)*19,yy-11,17,12,k,Li[1]);
+      g.fillStyle='#000'; g.font='11px '+FONT; g.fillText((10*Li[1]+1)+'-'+(10*Li[1]+3)+' '+Li[2],70,yy);
+    }
+    else if(Li[0]==='line'){g.strokeStyle='#00e5ff'; g.lineWidth=2; g.strokeRect(11,yy-10,14,10); g.fillStyle='#000'; g.font='12px '+FONT; g.fillText(Li[1],34,yy);}
+    yy+=18;
+  });
+  g.restore();
+  g.restore();
+  g.strokeStyle='#000'; g.lineWidth=1.2; g.strokeRect(0.6,TOP+0.6,W-1.2,Hm-1.2);
+  // titolo e sottotitolo
+  const fills=showProc&&($('bld').checked||$('holes').checked||$('buf').checked);
+  const par=[];
+  if(fills){
+    if($('bld').checked) par.push('edifici '+$('bpx').value.replace('.',',')+' m'+(+$('osm').value===2?' (solo OSM)':(+$('osm').value===1?' (+OSM)':'')));
+    if($('holes').checked) par.push('zone interne '+($('allint').checked?'tutte':'≤ '+$('area').value+' m²')+(+$('gap').value?', varco '+$('gap').value+' m':''));
+    if($('buf').checked) par.push('buffer '+$('bufpx').value.replace('.',',')+' m');
+  }
+  const where=[]; if(fills&&$('bld').checked) where.push('edifici'); if(fills&&$('holes').checked) where.push('zone interne alla mappatura');
+  let sub='';
+  if(fills){
+    if(where.length) sub='Mappa di pericolosità con riempimenti in corrispondenza di '+where.join(' e ')+($('buf').checked?' e buffer graduato ai margini':'');
+    else sub='Mappa di pericolosità con buffer graduato ai margini della mappatura';
+  }
+  g.fillStyle='#000'; g.textAlign='left'; g.font='bold 17px system-ui,Arial'; g.fillText(title,10,24);
+  if(sub){ g.font='12px system-ui,Arial'; g.fillStyle='#333'; g.fillText(sub,10,43); g.font='11px system-ui,Arial'; g.fillStyle='#666'; g.fillText('Parametri: '+par.join(' · '),10,58); }
+  const att=(document.querySelector('.leaflet-control-attribution')||{}).textContent||'';
+  g.font='10px system-ui,Arial'; g.fillStyle='#555';
+  g.fillText(('Base: '+att.replace('Leaflet |','').trim()+' · HazardFill · '+new Date().toLocaleDateString('it-IT')).slice(0,200),8,TOP+Hm+14);
+  return cv;
+}
+$('xpng').onclick=async()=>{
+  const mode=$('xmode').value, lyr=$('proc').value.replace(/\.tif+$/,'').replace(/.*\//,'');
+  const title=$('xtitle').value.trim()||($('case').value+' — '+lyr);
+  $('xmsg').textContent='preparo immagine…';
+  let cv=await exportMap(mode,title,true), blob=null, note='';
+  try{ blob=await new Promise((ok,ko)=>{try{cv.toBlob(ok,'image/png')}catch(e){ko(e)}}); }catch(e){ blob=null; }
+  if(!blob){ cv=await exportMap(mode,title,false); blob=await new Promise(ok=>cv.toBlob(ok,'image/png')); note='mappa base non inclusa (restrizioni del browser); layer, legenda, nord e scala sì.'; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  const fillsOn=mode!=='orig'&&($('bld').checked||$('holes').checked||$('buf').checked);
+  a.download=$('case').value.replace(/\W+/g,'_')+'_'+lyr+'_'+(mode==='screen'?'schermo':mode)+(fillsOn?'_riempimenti':'')+'.png'; a.click();
+  $('xmsg').textContent=note;
+};
+
+// ---- clic sul numero accanto allo slider: scrittura manuale (anche oltre il massimo dello slider)
+[['bpx','bpxv',200],['area','areav',1e6],['gap','gapv',1000],['bufpx','bufv',500]].forEach(([sid,lid,cap])=>{
+  const sl=$(sid), lb=$(lid); lb.classList.add('numv'); lb.title='clic per scrivere il valore';
+  lb.addEventListener('click',()=>{
+    if(sl.disabled||lb.querySelector('input')) return;
+    const inp=document.createElement('input'); inp.type='number'; inp.className='numi'; inp.value=sl.value; inp.min=sl.min; inp.max=cap; inp.step=sl.step&&sl.step!=='any'?sl.step:'any';
+    lb.textContent=''; lb.appendChild(inp); inp.focus(); inp.select();
+    let done=false;
+    const finish=ok=>{
+      if(done) return; done=true;
+      let v=parseFloat(inp.value);
+      if(ok&&isFinite(v)){
+        v=Math.min(cap,Math.max(+sl.min,v));
+        if(v>+sl.max) sl.max=v;
+        const st=+sl.step||1; if(Math.abs(v/st-Math.round(v/st))>1e-9) sl.step='any';
+        sl.value=v;
+      }
+      lb.textContent=sl.value;
+      if(ok) sl.dispatchEvent(new Event('input'));
+    };
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter') finish(true); else if(e.key==='Escape') finish(false); });
+    inp.addEventListener('blur',()=>finish(true));
+  });
+});
+fetch('/api/version').then(r=>r.json()).then(j=>{$('ver').textContent='v'+j.version}).catch(()=>{});
+
+// ---- caricamento di GeoTIFF ed edifici dal computer
+fetch('/api/version').then(r=>r.json()).then(j=>{ if(j.upload) $('updet').style.display='block'; }).catch(()=>{});
+$('upr').onchange=()=>{ if(!$('upa').value&&$('upr').files[0]) $('upa').value=$('upr').files[0].name.replace(/\.[^.]+$/,'').replace(/[^\w\-]+/g,'_'); };
+async function sendFile(kind,file,area){
+  const r=await fetch('/api/upload_data?kind='+kind+'&area='+encodeURIComponent(area)+'&name='+encodeURIComponent(file.name),{method:'POST',body:file});
+  return r.json();
+}
+$('upgo').onclick=async()=>{
+  const f=$('upr').files[0], b=$('upb').files[0], area=($('upa').value||'').trim();
+  const msg=$('upmsg'); msg.style.color='#666';
+  if(!f&&!b){msg.textContent='scegli almeno un file';return}
+  if(!area){msg.textContent='scrivi il nome dell\'area';return}
+  $('upgo').disabled=true; let last=null, out=[];
+  try{
+    for(const [kind,file] of [['raster',f],['buildings',b]]){
+      if(!file) continue;
+      msg.textContent='carico '+file.name+' ('+(file.size/1048576).toFixed(1)+' MB)…';
+      const j=await sendFile(kind,file,area);
+      if(j.error){msg.style.color='#b00'; msg.textContent=file.name+': '+j.error; $('upgo').disabled=false; return}
+      last=j; out.push(file.name+' ✔'+(j.info&&j.info.res?' ('+j.info.width+'×'+j.info.height+' px, '+j.info.res+' m)':(j.info&&j.info.features?' ('+j.info.features+' edifici)':'')));
+      (j.warnings||[]).forEach(w=>out.push('⚠ '+w));
+    }
+    msg.textContent='preparo la mappa…';
+    await loadInfo(last&&last.case);
+    msg.style.color='#080'; msg.innerHTML=out.join('<br>');
+  }catch(e){ msg.style.color='#b00'; msg.textContent='errore: '+e; }
+  $('upgo').disabled=false;
+};
+</script></body></html>

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+# dati elaborati o caricati in locale
+web/caricati/
+web/dati/*
+!web/dati/LEGGIMI.txt
+web/osm_cache/
+*.log
+# file temporanei
+tests/_out/
+*.tmp
+*.aux.xml

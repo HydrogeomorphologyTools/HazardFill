@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HazardFill - Help · utilizzo</title>
+<style>
+ body{font:15px/1.5 system-ui,Segoe UI,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#222}
+ h1{font-size:24px} h2{font-size:18px;margin-top:30px;border-bottom:1px solid #ddd;padding-bottom:4px} h3{font-size:15px;margin-top:20px}
+ code{background:#f2f2f2;padding:1px 4px;border-radius:3px} table{border-collapse:collapse;margin:8px 0}
+ td,th{border:1px solid #ccc;padding:4px 9px;text-align:left;vertical-align:top} th{background:#f5f5f5}
+ .sw{display:inline-block;width:14px;height:14px;border:1px solid #888;vertical-align:-2px;margin-right:6px}
+ .note{background:#fff8e1;border-left:4px solid #f5b400;padding:6px 12px;margin:10px 0}
+ .exrow{display:flex;flex-wrap:wrap;gap:18px;margin:10px 0 4px}
+ figure.ex{margin:0}
+ figcaption{font-size:12px;color:#444;max-width:200px;margin-top:3px}
+ table.g{border-collapse:collapse;margin:0} table.g td{width:16px;height:16px;padding:0;border:1px solid #bbb;text-align:center;font-size:8px;color:#222}
+ .ex-title{font-size:13px;color:#555;margin:14px 0 0}
+ ol.steps li{margin:3px 0}
+ .warn{background:#fff8e1;border-left:4px solid #f5b400;padding:8px 14px;margin:12px 0;font-size:14px}
+ .hd{display:flex;align-items:center;gap:16px;margin-bottom:8px} .hd h1{margin:0} .sub{color:#555;font-size:14px}
+</style></head><body>
+<div class="hd"><img src="{{LOGO}}" alt="HazardFill HF" width="64" height="64"><div><h1>HazardFill &mdash; Help &middot; utilizzo</h1><div class="sub">HF &middot; chiusura delle aree prive di valore nelle mappe di pericolosit&agrave;</div></div></div>
+<p>Procedura per rimuovere le "isole" di assenza di pericolo non realistiche in una mappa di pericolosit&agrave; raster
+(attorno agli edifici, in zone interne al dominio modellato, al margine del dominio). Disponibile come pagina web di prova e come plugin QGIS
+(algoritmi di Processing); i due usano lo <b>stesso codice di calcolo</b> e danno gli stessi risultati.</p>
+
+<div class="warn"><b>Avvertenza.</b> HazardFill (HF) &egrave; un <b>ausilio di pre-screening</b> per i gestori del territorio nella fase di valutazione finale della mappatura del pericolo, per una scelta e una gestione pi&ugrave; consapevoli del vincolo da apporre sul territorio. Non produce mappe di pericolosit&agrave;, non sostituisce la modellazione n&eacute; la valutazione di esperti, e i valori proposti sono <i>esempi di partenza</i>, non soglie di validit&agrave; generale.</div>
+<h2>0. In breve</h2>
+<ol class="steps">
+ <li>Prepara la mappa di pericolosit&agrave; con <b>solo le classi 0, 1, 2, 3</b> (sezione 1) e, se li hai, gli edifici.</li>
+ <li>Scegli i passi da applicare: <b>edifici</b>, <b>zone interne</b>, <b>buffer</b>. I valori proposti sono <i>esempi di partenza</i>, non parametri definitivi.</li>
+ <li>Guarda dove la mappa &egrave; cambiata (i pixel modificati hanno un codice proprio) e regola i parametri.</li>
+ <li>Esporta il raster (con codici o pulito) e l'immagine della mappa con legenda, nord e scala.</li>
+</ol>
+
+<h2>1. Dati in ingresso</h2>
+<h3>Mappa di pericolosit&agrave; (raster)</h3>
+<ul>
+ <li>GeoTIFF (o altro formato GDAL) a <b>una banda</b>, griglia regolare "nord in alto", in un <b>sistema di coordinate proiettato in metri</b> (es. EPSG:32632). Un CRS geografico (gradi) non &egrave; accettato.</li>
+ <li>Valori ammessi, <b>solo queste classi</b>:
+  <table>
+   <tr><th>Valore</th><th>Significato</th></tr>
+   <tr><td><span class="sw" style="background:#fff"></span>0</td><td>nessun pericolo / fuori dal dominio / nodata</td></tr>
+   <tr><td><span class="sw" style="background:#ffeb3b"></span>1</td><td>pericolo basso</td></tr>
+   <tr><td><span class="sw" style="background:#ff8c00"></span>2</td><td>pericolo medio</td></tr>
+   <tr><td><span class="sw" style="background:#d62828"></span>3</td><td>pericolo alto</td></tr>
+  </table></li>
+ <li>Il <b>nodata</b> (anche valori negativi come &minus;9999, NaN, ecc.) viene <b>assimilato a 0</b>. Valori non interi vengono arrotondati; valori &gt;3 limitati a 3. Se la tua mappa usa altri codici, riclassificala prima (<i>Raster &rarr; Calcolatore raster</i>).</li>
+ <li>Il file originale non viene mai modificato: i risultati sono sempre scritti in nuovi file.</li>
+</ul>
+<h3>Edifici (vettore poligonale, opzionale se si usa OSM)</h3>
+<ul>
+ <li>Qualsiasi formato (shapefile, GeoPackage, ...), geometrie poligonali, <b>qualsiasi CRS</b> (viene riproiettato nel CRS del raster). Non servono attributi.</li>
+ <li>Gli edifici non erano presenti nella simulazione (considerati ostacoli/rimossi): per questo il pericolo sugli edifici viene ricostruito dai pixel circostanti (criterio 0).</li>
+</ul>
+<h3>Edifici da OpenStreetMap (opzione)</h3>
+<ul>
+ <li>Sorgente <b>solo edifici forniti</b> (predefinito) / <b>forniti + integra da OSM</b> / <b>solo OSM</b>.</li>
+ <li>Gli edifici vengono scaricati da OpenStreetMap (servizio Overpass) per l'estensione del raster, <b>serve connessione internet</b>. Per rispetto del servizio i risultati sono messi in cache su disco e le richieste ritentano automaticamente su server alternativi se sono occupati.</li>
+ <li>Con <i>integra</i>, un edificio OSM viene aggiunto solo se <b>meno del 20%</b> della sua superficie ricade su edifici gi&agrave; forniti, cos&igrave; non si duplicano gli edifici presenti nei tuoi dati.</li>
+ <li>Limiti: la copertura OSM varia da zona a zona; dei multipoligoni sono usati solo gli anelli esterni (i cortili interni sono ignorati). Dati &copy; contributori OpenStreetMap (ODbL): citare la fonte.</li>
+</ul>
+
+<h2>2. Criteri, con esempi</h2>
+<p>Negli esempi ogni quadratino &egrave; un pixel e il numero &egrave; il valore. <span style="border:2px solid #00b8d4;padding:0 4px">Bordo azzurro</span> = edificio.
+I pixel <b>tratteggiati</b> sono quelli modificati dal passo e riportano il loro <b>codice</b> (vedi sezione 3). I passi vengono applicati nell'ordine 0 &rarr; 1 &rarr; 2.</p>
+
+<h3>0. Edifici</h3>
+<p>Ogni edificio assume il valore di pericolo <b>massimo</b> che lo tocca o che si trova entro la <b>tolleranza</b> (in metri) dal suo bordo. Un valore esistente non viene mai abbassato.</p>
+{{EX_BUILDINGS}}
+<p>Parametro: <b>tolleranza dal bordo in metri</b> (predefinito 0 m). Con 0 conta solo il pericolo dentro l'edificio; con valori &gt;0 anche quello nella fascia attorno. I metri sono convertiti in pixel con la risoluzione del raster (arrotondando): a 0,5 m/pixel, 1 m = 2 pixel.</p>
+
+<h3>1. Chiusura zone interne</h3>
+<p>Le zone a 0 "interne" al dominio modellato (isole di assenza di pericolo circondate da valori &gt;0, non collegate al margine del raster) vengono riempite se la loro area &egrave; &le; <b>A m&sup2;</b>, oppure <b>tutte</b> (opzione "chiudi TUTTE").</p>
+{{EX_HOLES}}
+<p><b>Come si decide interno/esterno</b>: si cercano le parti "larghe" di zona a 0 (pi&ugrave; lontane dal valore valido di met&agrave; varco); quelle che toccano il bordo del raster sono "esterno"; ogni pixel a 0 viene assegnato alla zona larga pi&ugrave; vicina camminando solo sugli 0. I pixel non raggiunti dall'esterno sono "interni".</p>
+
+<h3>1b. Varco sigillabile</h3>
+<p>Con varco 0 m sono interne solo le zone completamente chiuse. Con un varco &gt;0 sono considerate interne anche le zone collegate all'esterno solo da passaggi <b>pi&ugrave; stretti</b> del varco (tasche con apertura piccola, ad esempio una zona chiusa da un argine con una sola interruzione). Si considerano tutte le scale fino al varco indicato.</p>
+{{EX_GAP}}
+
+<h3>1c. Valore di riempimento</h3>
+<p>Quale valore ricevono le zone interne chiuse:</p>
+<ul><li><b>pi&ugrave; frequente del contorno</b> o maggioranza (<code>major</code>, <b>predefinito</b>): il valore con pi&ugrave; celle di contorno;</li>
+<li><b>massimo del contorno</b> (<code>max</code>): il pi&ugrave; alto tra i valori che circondano la zona (scelta prudente);</li>
+<li><b>pi&ugrave; vicino</b> (<code>near</code>): ogni cella prende il valore della cella valida pi&ugrave; vicina (utile per zone grandi con contorno vario).</li></ul>
+{{EX_FILLMODE}}
+
+<h3>2. Buffer graduato sulla classe 0</h3>
+<p>Una fascia di <b>larghezza data in metri</b> (predefinito 1 m) sulla classe 0 adiacente a pixel validi riceve il valore del pixel valido pi&ugrave; vicino <b>meno 1 grado</b> (minimo 1). Non sovrascrive mai pixel gi&agrave; validi. Serve dove il modello termina "nel vuoto" (margine del dominio).</p>
+{{EX_BUFFER}}
+<div class="note">Un pixel modificato da un passo non viene riassegnato dai successivi: il codice registra il <b>primo</b> passo che l'ha modificato.</div>
+
+<h2>3. Risultati e codici</h2>
+<table>
+ <tr><th>File</th><th>Contenuto</th></tr>
+ <tr><td>Raster con codici</td><td>GeoTIFF uint8, nodata=0, stessa griglia dell'originale, accompagnato da un file di stile <code>.qml</code> con lo stesso nome.</td></tr>
+ <tr><td>Raster pulito (opzionale)</td><td>Solo valori 0-3 (versione finale da usare), con stile <code>.qml</code>.</td></tr>
+ <tr><td>Vettoriale (GeoPackage)</td><td>Poligoni con gli stessi codici del raster, in <b>4 livelli</b>: <code>originale</code> (classi 1-3 della mappa di partenza), <code>omogeneizzata</code> (classi 1-3 dopo i riempimenti), <code>mappa_con_codici</code> (tutti i codici 1-3, 11-33) e <code>modifiche</code> (solo i poligoni modificati, codici 11-33). Campi: <code>codice</code>, <code>classe</code>, <code>criterio</code> (originale / edifici / zone interne / buffer), <code>area_m2</code>. Stile QGIS categorizzato incorporato.</td></tr>
+ <tr><td>Immagine della mappa (PNG)</td><td>Mappa con titolo, legenda, freccia del nord e scala, a 150 dpi (sezione 4).</td></tr>
+</table>
+<p>Il vettoriale si ottiene per poligonizzazione dei pixel (celle adiacenti dello stesso valore unite, 4-connesse, con bordi a gradini): le geometrie sono valide e, per costruzione, senza sovrapposizioni né vuoti tra poligoni; la somma delle aree di ogni codice coincide con quella dei pixel del raster. Pagina web: pulsante &laquo;Vettoriale (GeoPackage) con codici&raquo;; plugin: uscita facoltativa &laquo;Vettoriale GeoPackage con codici&raquo;. Per raster molto grandi la generazione pu&ograve; richiedere minuti.</p>
+<p>Codici nel raster "con codici": <b>decine = passo che ha modificato il pixel</b>, <b>unit&agrave; = livello di pericolo assegnato</b>.</p>
+<table>
+ <tr><th>Codice</th><th>Significato</th></tr>
+ <tr><td>0</td><td>nodata / nessun pericolo</td></tr>
+ <tr><td>1 2 3</td><td>pericolo originale (non modificato) basso / medio / alto</td></tr>
+ <tr><td>11 12 13</td><td>valore 1/2/3 assegnato da <b>edifici</b></td></tr>
+ <tr><td>21 22 23</td><td>valore 1/2/3 assegnato da <b>zone interne</b></td></tr>
+ <tr><td>31 32 33</td><td>valore 1/2/3 assegnato da <b>buffer graduato</b></td></tr>
+</table>
+<p>Esempio: <b>23</b> = pixel di pericolo alto (3) assegnato da una zona interna (2). I parametri usati sono scritti nei metadati del GeoTIFF (<i>Propriet&agrave; &rarr; Informazioni</i>).</p>
+
+<h2>4. Immagine della mappa (legenda, nord, scala)</h2>
+<ul>
+ <li><b>Pagina web</b>: sezione "Esporta mappa (immagine)". Si sceglie <i>come a schermo</i>, <i>solo mappa originale</i> o <i>solo mappa con riempimenti</i>; il PNG riporta quello che vedi (base cartografica, hillshade, layer, edifici).</li>
+ <li><b>Plugin</b>: algoritmo "Esporta mappa con legenda, nord e scala (PNG)": usa i layer visibili del progetto QGIS, l'estensione che indichi e il raster elaborato (o originale) da descrivere in legenda.</li>
+ <li>Titolo: se ci sono riempimenti compaiono sotto il titolo una frase (es. "con riempimenti in corrispondenza di edifici e zone interne alla mappatura") e i parametri usati; senza riempimenti c'&egrave; solo il titolo.</li>
+ <li>La legenda riporta le classi 1-3 e i codici (11-13, 21-23, 31-33) <b>solo dei passi selezionati</b>.</li>
+ <li>Scala: lunghezza minima 100 m, unit&agrave; scritta una sola volta in fondo. Uscita a 150 dpi.</li>
+ <li>Il nome file di default contiene la parola <b>riempimenti</b> quando i riempimenti sono attivi.</li>
+</ul>
+
+<h2>5. Indicazioni d'uso</h2>
+<ul>
+ <li>Parti con i valori di esempio (edifici 0 m, zone interne 10 m&sup2;, buffer 1 m, riempimento per maggioranza) e guarda dove sono avvenute le modifiche (codici &ge;11).</li>
+ <li><b>I valori usati sono esempi per aiutare la scelta, non parametri definitivi</b>: la scelta finale spetta al decisore, sulla base del confronto tra mappa originale e mappa con riempimenti.</li>
+ <li>Per zone interne grandi note nei risultati aumenta l'area o usa "chiudi TUTTE" e/o il varco: controlla visivamente che non vengano chiusi bracci d'acqua o tratti realmente privi di pericolo.</li>
+ <li>Il buffer ha senso solo dove il modello termina "nel vuoto"; valori elevati allargano la mappa oltre quanto simulato.</li>
+ <li>Mantieni sempre il raster con i codici: permette di distinguere in ogni momento dato simulato e dato assegnato.</li>
+ <li>Tolleranza edifici, buffer e varco (metri) e area (m&sup2;) sono convertiti in pixel con la risoluzione del raster.</li>
+</ul>
+
+<h2>6. Memoria e tempi</h2>
+<p>Il calcolo lavora in memoria su tutto il raster (numpy/scipy). Per raster molto grandi (decine di milioni di pixel, es. 0,5 m su pi&ugrave; km&sup2;) servono alcuni GB di RAM e da secondi a minuti; la chiusura delle zone interne con varco grande &egrave; il passo pi&ugrave; pesante.</p>
+<p><small>HazardFill 1.0.0 &middot; &copy; 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta &mdash; CNR-GEO (Istituto di Geoscienze) &middot; Licenza GNU GPL v2 &middot; <a href="https://github.com/HydrogeomorphologyTools/HazardFill">github.com/HydrogeomorphologyTools/HazardFill</a>. Da validare sui dati definitivi prima di qualunque uso ufficiale. Dati OpenStreetMap &copy; contributori OpenStreetMap (ODbL).</small></p>
+</body></html>
