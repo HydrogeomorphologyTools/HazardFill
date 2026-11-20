@@ -2,7 +2,7 @@
 name=HazardFill (HF)
 qgisMinimumVersion=3.22
 description=Pre-screening delle mappe di pericolosita': chiusura delle aree prive di valore (edifici, zone interne, buffer sul margine), con edifici OSM opzionali
-version=1.1.1
+version=1.2.0
 author=Stefano Crema, Marco Cavalli, Alessandro Sarretta (CNR-GEO, Istituto di Geoscienze)
 email=
 about=HazardFill (HF) e' un ausilio di pre-screening per i gestori del territorio nella fase di valutazione finale della mappatura del pericolo, per una scelta e una gestione piu' consapevoli del vincolo. Su mappe a classi 0-3 assegna agli edifici la classe massima circostante, chiude le zone interne a 0 e aggiunge un buffer graduato sul margine. Esporta raster con codici di modifica e raster pulito (con stile QGIS), un GeoPackage vettoriale a 4 livelli e la mappa in PNG con legenda, nord e scala. Non produce mappe di pericolosita' e non sostituisce la valutazione di esperti.

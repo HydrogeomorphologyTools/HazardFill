@@ -74,6 +74,7 @@ class HazardFillPlugin:
     def initGui(self):
         self.initProcessing()
         run = self._act("Elabora mappa di pericolosità…", lambda: self._dlg("hazardfill:fillhazard"))
+        self._act("Apri cartella di dati…", self.open_folder)
         self._act("Esporta mappa con legenda, nord e scala (PNG)…", lambda: self._dlg("hazardfill:exportmap"))
         self._act("Aggiungi basi cartografiche (satellite, hillshade, ...)", self.basemaps)
         self._act("Help – utilizzo", lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(MANUAL)))
@@ -82,6 +83,31 @@ class HazardFillPlugin:
     def _dlg(self, alg):
         import processing
         processing.execAlgorithmDialog(alg)
+
+    def open_folder(self):
+        """Sceglie una cartella, carica raster ed edifici trovati e apre l'algoritmo gia' compilato."""
+        import processing
+        from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
+        from .folder_dialog import FolderDialog
+        dlg = FolderDialog(self.iface.mainWindow())
+        if not dlg.exec_():
+            return
+        rpath, bpath = dlg.selection()
+        if not rpath:
+            return
+        rl = QgsRasterLayer(rpath, os.path.splitext(os.path.basename(rpath))[0])
+        params = {}
+        if rl.isValid():
+            QgsProject.instance().addMapLayer(rl)
+            params["INPUT"] = rl.id()
+        if bpath:
+            vl = QgsVectorLayer(bpath, os.path.splitext(os.path.basename(bpath))[0], "ogr")
+            if vl.isValid():
+                QgsProject.instance().addMapLayer(vl)
+                params["BUILDINGS"] = vl.id()
+        else:
+            params["OSM"] = 2
+        processing.execAlgorithmDialog("hazardfill:fillhazard", params)
 
     def basemaps(self):
         n = add_basemaps()

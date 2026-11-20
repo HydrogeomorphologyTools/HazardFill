@@ -20,7 +20,7 @@ from qgis.core import QgsApplication, QgsProject, QgsRasterLayer, QgsVectorLayer
 
 prefix = os.environ.get("QGIS_PREFIX") or (r"C:\Program Files\QGIS 3.34.11\apps\qgis-ltr" if sys.platform.startswith("win") else "/usr")
 QgsApplication.setPrefixPath(prefix, True)
-app = QgsApplication([], False)
+app = QgsApplication([], True)          # con GUI (offscreen): serve alla finestra della cartella
 app.initQgis()
 sys.path.append(os.path.join(prefix, "python", "plugins"))
 import processing  # noqa: E402
@@ -60,14 +60,15 @@ check("dati di esempio leggibili", rl.isValid() and vl.isValid())
 alg = QgsApplication.processingRegistry().algorithmById("hazardfill:fillhazard")
 check("algoritmi registrati", alg is not None and QgsApplication.processingRegistry().algorithmById("hazardfill:exportmap") is not None)
 d = {p.name(): p.defaultValue() for p in alg.parameterDefinitions()}
-check("valori predefiniti", d["BUILDING_TOLERANCE"] == 0.0 and d["BUFFER_WIDTH"] == 1.0 and d["FILL_MODE"] == 1 and d["APPLY_BUILDINGS"] is True)
+check("valori predefiniti", d["BUILDING_TOLERANCE"] == 0.0 and d["BUFFER_WIDTH"] == 1.0 and d["FILL_MODE"] == 1 and d["APPLY_BUILDINGS"] is True and d["CREATE_CLEAN"] is False)
+check("area massima 100000 m2", alg.parameterDefinition("AREA").maximum() == 100000)
 
 # elaborazione completa con raster, vettoriale e confronto con il nucleo
 out = os.path.join(tmp, "elab.tif")
-clean = os.path.join(tmp, "elab_pulita.tif")
+clean = os.path.join(tmp, "elab_pulito.tif")
 gp = os.path.join(tmp, "elab.gpkg")
 processing.run("hazardfill:fillhazard", dict(INPUT=rl, BUILDINGS=vl, OSM=0, APPLY_BUILDINGS=True, BUILDING_TOLERANCE=0.5, APPLY_HOLES=True, AREA=10000.0,
-               ALL_HOLES=False, GAP=30.0, FILL_MODE=1, APPLY_BUFFER=True, BUFFER_WIDTH=1.0, OUTPUT=out, OUTPUT_CLEAN=clean, OUTPUT_VECTOR=gp))
+               ALL_HOLES=False, GAP=30.0, FILL_MODE=1, APPLY_BUFFER=True, BUFFER_WIDTH=1.0, OUTPUT=out, CREATE_CLEAN=True, OUTPUT_VECTOR=gp))
 a, b = arr(out), arr(clean)
 check("raster con codici e raster pulito", set(np.unique(a)) >= {0, 1} and a.max() >= 11 and set(np.unique(b)) <= {0, 1, 2, 3})
 check("stile .qml accanto ai raster", os.path.exists(out.replace(".tif", ".qml")) and os.path.exists(clean.replace(".tif", ".qml")))
@@ -113,6 +114,26 @@ codes = core.with_codes(o, c)
 check("aree dei poligoni = pixel", all(abs(tot[k] - (codes == k).sum() * res) < max(0.05, 1e-6 * tot[k]) for k in tot))
 vv = QgsVectorLayer(gp + "|layername=mappa_con_codici", "v", "ogr")
 check("stile incorporato nel GeoPackage", vv.isValid() and isinstance(vv.renderer(), QgsCategorizedSymbolRenderer) and len(vv.renderer().categories()) == 12)
+
+# retini per criterio nello stile del vettoriale
+from qgis.core import QgsCategorizedSymbolRenderer  # noqa: E402,F811
+r = vv.renderer()
+cats = r.categories()                    # tenute vive: i simboli appartengono alle categorie
+sym = {int(c.value()): c.symbol() for c in cats}
+ang = {k: sym[k].symbolLayer(1).properties().get("angle") for k in (11, 21, 31)}
+check("retini diversi per criterio nel vettoriale", sym[1].symbolLayerCount() == 1 and all(sym[k].symbolLayerCount() == 2 for k in (11, 23, 33)) and ang == {11: "45", 21: "0", 31: "90"}, str(ang))
+
+# stile a classi singole applicato al caricamento (anche per i file temporanei)
+from hazardfill.algorithm import StylePostProcessor, _qml_file  # noqa: E402
+lyr_styled = QgsRasterLayer(out, "x")
+StylePostProcessor(_qml_file(False)).postProcessLayer(lyr_styled, None, None)
+check("raster caricato a classi singole (non sfumato)", lyr_styled.renderer().type() == "paletted" and len(lyr_styled.renderer().classes()) >= 12, lyr_styled.renderer().type())
+
+# finestra «Apri cartella di dati»
+from hazardfill.folder_dialog import FolderDialog  # noqa: E402
+dlg = FolderDialog(None, os.path.join(ROOT, "examples"))
+rp, bp = dlg.selection()
+check("cartella: trova raster ed edifici e li propone", dlg.cb_raster.count() == 1 and dlg.cb_build.count() >= 3 and rp.endswith("Mappa_Pericolo_V1.tif") and bp is not None and "dific" in bp, os.path.basename(str(bp)))
 
 # edifici in un altro CRS (GeoJSON in EPSG:4326)
 gj = os.path.join(tmp, "edifici.geojson")

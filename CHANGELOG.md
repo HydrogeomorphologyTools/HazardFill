@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0 — 2026-11-20
+* **Un solo raster di uscita** nel plugin (con codici); il raster pulito (0-3) è una casella facoltativa. Lo stile a **classi singole** (giallo → arancio → rosso, le classi che finiscono con 3 sono le più gravose) è applicato al caricamento, anche per i file temporanei.
+* **Retini per criterio** (edifici oblique, zone interne orizzontali, buffer verticali) nello stile del vettoriale GeoPackage, nella pagina e nelle immagini.
+* **Scelta della cartella**: plugin («Apri cartella di dati…») e pagina web (locale e online) cercano raster ed edifici e li propongono in due menù a tendina; resta la scelta dei singoli file.
+* Area massima delle zone interne portata a 100 000 m². Esportazione dalla pagina: «Raster con codici + stile QGIS» in un clic.
+
 ## 1.1.1 — 2026-11-20
 * **Edifici da OpenStreetMap più robusti**: ogni richiesta a Overpass ha un tempo massimo (30 s), i server sono provati in ordine migliore, i messaggi indicano a che punto si è e l'operazione si può **annullare subito** (prima il plugin poteva restare in attesa per minuti).
 * Dati di prova: aggiunti `Edifici_Figna_test.zip` (shapefile compresso) e `Edifici_Figna_test.gpkg`.

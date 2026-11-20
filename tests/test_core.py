@@ -227,3 +227,25 @@ def test_osm_buildings_uses_the_cache_without_network(tmp_path):
     assert len(rings) == 1 and rings[0][0] == rings[0][-1]
     with pytest.raises(core.Cancelled):
         core.osm_buildings(south, west, north, east, cache_dir=str(tmp_path), is_canceled=lambda: True)
+
+
+def test_scan_folder_finds_rasters_and_buildings(tmp_path):
+    (tmp_path / "A").mkdir()
+    (tmp_path / "A" / "Edifici").mkdir()
+    (tmp_path / "A" / "mappa.tif").write_bytes(b"x")
+    (tmp_path / "A" / "mappa.tif.aux.xml").write_text("x")
+    (tmp_path / "A" / "Edifici" / "edifici.shp").write_bytes(b"x")
+    (tmp_path / "B").mkdir()
+    (tmp_path / "B" / "altro.zip").write_bytes(b"x")
+    (tmp_path / "B" / "m2.tiff").write_bytes(b"x")
+    found = core.scan_folder(str(tmp_path))
+    assert [os.path.basename(p) for p in found["rasters"]] == ["mappa.tif", "m2.tiff"] or sorted(os.path.basename(p) for p in found["rasters"]) == ["m2.tiff", "mappa.tif"]
+    assert os.path.basename(found["buildings"][0]) == "edifici.shp"            # quelli che richiamano gli edifici vengono prima
+    assert len(found["buildings"]) == 2 and not any(p.endswith(".xml") for p in found["rasters"] + found["buildings"])
+
+
+def test_vector_style_has_hatches_only_for_modified_codes():
+    q = core.make_vector_qml("codice", False)
+    assert q.count("LinePatternFill") == 9                    # 9 codici di modifica: 11-13, 21-23, 31-33
+    assert 'name="angle" value="45"' in q and 'name="angle" value="0"' in q and 'name="angle" value="90"' in q
+    assert "LinePatternFill" not in core.make_vector_qml("classe", True)

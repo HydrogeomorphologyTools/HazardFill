@@ -25,7 +25,7 @@
 <div class="warn"><b>Avvertenza.</b> HazardFill (HF) &egrave; un <b>ausilio di pre-screening</b> per i gestori del territorio nella fase di valutazione finale della mappatura del pericolo, per una scelta e una gestione pi&ugrave; consapevoli del vincolo da apporre sul territorio. Non produce mappe di pericolosit&agrave;, non sostituisce la modellazione n&eacute; la valutazione di esperti, e i valori proposti sono <i>esempi di partenza</i>, non soglie di validit&agrave; generale.</div>
 <h2>0. In breve</h2>
 <ol class="steps">
- <li>Prepara la mappa di pericolosit&agrave; con <b>solo le classi 0, 1, 2, 3</b> (sezione 1) e, se li hai, gli edifici.</li>
+ <li>Prepara la mappa di pericolosit&agrave; con <b>solo le classi 0, 1, 2, 3</b> (sezione 1) e, se li hai, gli edifici. Puoi scegliere i file uno per uno oppure <b>una cartella</b>: il plugin (menu <i>Raster &rarr; HazardFill &rarr; Apri cartella di dati&hellip;</i>) e la pagina web (&laquo;cartella&raquo; in <i>Carica i tuoi dati</i>) cercano raster ed edifici e ti fanno scegliere su quali lavorare.</li>
  <li>Scegli i passi da applicare: <b>edifici</b>, <b>zone interne</b>, <b>buffer</b>. I valori proposti sono <i>esempi di partenza</i>, non parametri definitivi.</li>
  <li>Guarda dove la mappa &egrave; cambiata (i pixel modificati hanno un codice proprio) e regola i parametri.</li>
  <li>Esporta il raster (con codici o pulito) e l'immagine della mappa con legenda, nord e scala.</li>
@@ -99,6 +99,7 @@ I pixel <b>tratteggiati</b> sono quelli modificati dal passo e riportano il loro
  <tr><td>Immagine della mappa (PNG)</td><td>Mappa con titolo, legenda, freccia del nord e scala, a 150 dpi (sezione 4).</td></tr>
 </table>
 <p>Il vettoriale si ottiene per poligonizzazione dei pixel (celle adiacenti dello stesso valore unite, 4-connesse, con bordi a gradini): le geometrie sono valide e, per costruzione, senza sovrapposizioni né vuoti tra poligoni; la somma delle aree di ogni codice coincide con quella dei pixel del raster. Pagina web: pulsante &laquo;Vettoriale (GeoPackage) con codici&raquo;; plugin: uscita facoltativa &laquo;Vettoriale GeoPackage con codici&raquo;. Per raster molto grandi la generazione pu&ograve; richiedere minuti.</p>
+<p><b>Come si vede.</b> Nel raster con codici i valori sono mostrati a <b>classi singole</b> (non sfumati), dal <b>giallo</b> (1) all'<b>arancio</b> (2) al <b>rosso</b> (3): le classi che finiscono con 3 sono le pi&ugrave; gravose. I pixel modificati hanno la stessa tonalit&agrave; pi&ugrave; scura, diversa per criterio. Dove si pu&ograve; (vettoriale, pagina web, immagini) i pixel modificati hanno anche un <b>retino</b> che dipende dal criterio: <b>edifici a linee oblique, zone interne a linee orizzontali, buffer a linee verticali</b>. L'algoritmo del plugin crea di default <b>un solo raster</b> (con codici); il raster pulito (solo 0-3) si ottiene spuntando la casella apposita.</p>
 <p>Codici nel raster "con codici": <b>decine = passo che ha modificato il pixel</b>, <b>unit&agrave; = livello di pericolo assegnato</b>.</p>
 <table>
  <tr><th>Codice</th><th>Significato</th></tr>
@@ -132,5 +133,5 @@ I pixel <b>tratteggiati</b> sono quelli modificati dal passo e riportano il loro
 
 <h2>6. Memoria e tempi</h2>
 <p>Il calcolo lavora in memoria su tutto il raster (numpy/scipy). Per raster molto grandi (decine di milioni di pixel, es. 0,5 m su pi&ugrave; km&sup2;) servono alcuni GB di RAM e da secondi a minuti; la chiusura delle zone interne con varco grande &egrave; il passo pi&ugrave; pesante.</p>
-<p><small>HazardFill 1.1.1 &middot; &copy; 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta &mdash; CNR-GEO (Istituto di Geoscienze) &middot; Licenza GNU GPL v2 &middot; <a href="https://github.com/HydrogeomorphologyTools/HazardFill">github.com/HydrogeomorphologyTools/HazardFill</a>. Da validare sui dati definitivi prima di qualunque uso ufficiale. Dati OpenStreetMap &copy; contributori OpenStreetMap (ODbL).</small></p>
+<p><small>HazardFill 1.2.0 &middot; &copy; 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta &mdash; CNR-GEO (Istituto di Geoscienze) &middot; Licenza GNU GPL v2 &middot; <a href="https://github.com/HydrogeomorphologyTools/HazardFill">github.com/HydrogeomorphologyTools/HazardFill</a>. Da validare sui dati definitivi prima di qualunque uso ufficiale. Dati OpenStreetMap &copy; contributori OpenStreetMap (ODbL).</small></p>
 </body></html>

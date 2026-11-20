@@ -13,7 +13,7 @@ Compatibile con **QGIS 3.22 o successivo** (provato con 3.34 LTR). Richiede solo
 
 ## Dove si trova
 
-* Menu **Raster → HazardFill**: *Elabora mappa di pericolosità…*, *Esporta mappa con legenda, nord e scala (PNG)…*, *Aggiungi basi cartografiche…*, *Help – utilizzo*.
+* Menu **Raster → HazardFill**: *Apri cartella di dati…* (sceglie una cartella, trova raster ed edifici, fa scegliere su quali lavorare con due menù a tendina, li carica nel progetto e apre l'algoritmo già compilato), *Elabora mappa di pericolosità…*, *Esporta mappa con legenda, nord e scala (PNG)…*, *Aggiungi basi cartografiche…*, *Help – utilizzo*.
 * Pannello **Processing**, gruppo *HazardFill → Mappe di pericolosità*: gli stessi algoritmi, quindi utilizzabili in **batch**, nei **modelli grafici** e da riga di comando.
 
 ## Algoritmo «Chiusura buchi nella mappa di pericolosità» (`hazardfill:fillhazard`)
@@ -26,18 +26,18 @@ Compatibile con **QGIS 3.22 o successivo** (provato con 3.34 LTR). Richiede solo
 | 0. Applica criterio edifici | `APPLY_BUILDINGS` | sì |
 | Edifici: tolleranza dal bordo (m) | `BUILDING_TOLERANCE` | 0 |
 | 1. Chiudi zone interne | `APPLY_HOLES` | sì |
-| Zone interne: area massima da chiudere (m²) | `AREA` | 10 |
+| Zone interne: area massima da chiudere (m², fino a 100 000) | `AREA` | 10 |
 | Chiudi TUTTE le zone interne | `ALL_HOLES` | no |
 | Varco sigillabile (m, 0 = solo zone chiuse) | `GAP` | 0 |
 | Valore di riempimento: 0 massimo · 1 maggioranza · 2 più vicino | `FILL_MODE` | 1 |
 | 2. Buffer graduato su classe 0 | `APPLY_BUFFER` | sì |
 | Buffer: larghezza (m) | `BUFFER_WIDTH` | 1 |
 | **Raster con codici** | `OUTPUT` | (obbligatorio) |
-| Raster pulito (0-3) | `OUTPUT_CLEAN` | facoltativo |
+| Crea anche il raster pulito (0-3, `<nome>_pulito.tif`) | `CREATE_CLEAN` | no |
 | Vettoriale GeoPackage con codici (4 livelli) | `OUTPUT_VECTOR` | facoltativo |
 
 * Gli edifici sono letti direttamente dal layer, senza il filtro di QGIS sulle geometrie non valide.
-* I raster di uscita sono scritti con lo **stile `.qml`** accanto al file, e quindi si aprono già colorati. Il GeoPackage ha lo stile incorporato; i suoi livelli sono aggiunti al progetto a fine elaborazione.
+* Di default si crea **un solo raster** (con codici), mostrato a **classi singole** dal giallo al rosso: lo stile è applicato al caricamento (anche per i file temporanei) e salvato come `.qml` accanto al file. Nel GeoPackage i poligoni modificati hanno un **retino** per criterio (edifici oblique, zone interne orizzontali, buffer verticali). Il GeoPackage ha lo stile incorporato; i suoi livelli sono aggiunti al progetto a fine elaborazione.
 * In «Registro» compaiono il numero di edifici modificati, i pixel modificati per criterio e il conteggio dei pixel per classe prima e dopo.
 
 ## Algoritmo «Esporta mappa con legenda, nord e scala (PNG)» (`hazardfill:exportmap`)
@@ -70,7 +70,7 @@ Con `qgis_process` (installato con QGIS):
 qgis_process plugins enable hazardfill
 qgis_process run hazardfill:fillhazard -- INPUT=mappa.tif BUILDINGS=edifici.shp \
     BUILDING_TOLERANCE=0.5 AREA=10000 GAP=30 FILL_MODE=1 BUFFER_WIDTH=5 \
-    OUTPUT=elaborata.tif OUTPUT_CLEAN=pulita.tif OUTPUT_VECTOR=elaborata.gpkg
+    OUTPUT=elaborata.tif CREATE_CLEAN=true OUTPUT_VECTOR=elaborata.gpkg
 ```
 
 ## Problemi frequenti

@@ -40,7 +40,9 @@ dati/
       edifici.shp               (facoltativo: .shp, .gpkg o .geojson)
 ```
 
-**2. Dal computer, con la pagina**: apri **«Carica i tuoi dati»** sotto la scelta del caso, scrivi il nome dell'area, scegli il **GeoTIFF** e, se vuoi, gli **edifici** (shapefile compresso `.zip`, GeoPackage o GeoJSON) e premi *Carica*.
+**2. Scegliendo una cartella dalla pagina**: in **«Carica i tuoi dati»** premi *cartella*, scegli la cartella: la pagina trova i raster (`.tif`) e gli edifici (`.zip`, `.shp` con i suoi file, `.gpkg`, `.geojson`, anche nelle sottocartelle) e propone due menù a tendina per scegliere su quali lavorare; premi *Carica dalla cartella*.
+
+**3. Dal computer, file per file**: apri **«Carica i tuoi dati»** sotto la scelta del caso, scrivi il nome dell'area, scegli il **GeoTIFF** e, se vuoi, gli **edifici** (shapefile compresso `.zip`, GeoPackage o GeoJSON) e premi *Carica*.
 I file sono controllati (CRS proiettato, griglia con nord in alto, classi, geometrie) con avvisi chiari e salvati nella cartella di lavoro (`web/caricati` di partenza, area con suffisso «(caricati)»).
 
 ## La pagina
@@ -50,7 +52,7 @@ I file sono controllati (CRS proiettato, griglia con nord in alto, classi, geome
   *Evidenzia pixel modificati* mostra il tratteggio dei pixel cambiati; *sovrapponi originale* serve al confronto.
 * **Statistiche**: m² per classe prima e dopo, edifici modificati, zone chiuse, pixel di buffer, pixel modificati per criterio.
 * **Esporta mappa (immagine)**: PNG con titolo, legenda, nord e scala, a 150 dpi; scelta *come a schermo / solo originale / solo con riempimenti*; titolo libero.
-* **Esporta mappatura**: raster con codici, raster pulito, stile QGIS `.qml`, **GeoPackage vettoriale** (4 livelli).
+* **Esporta mappatura**: **raster con codici + stile QGIS** (un clic, due file da tenere insieme), *solo classi 0-3*, **GeoPackage vettoriale** (4 livelli). Area massima delle zone interne: fino a 100 000 m². I pixel modificati hanno un retino per criterio (edifici oblique, zone interne orizzontali, buffer verticali).
 * **Basi**: OSM, satellite Esri, Sentinel-2 EOX, OpenTopoMap, **hillshade** calcolato dal DEM (Terrarium) e hillshade Esri.
 * **Help – utilizzo**: link in alto, con esempi sintetici.
 

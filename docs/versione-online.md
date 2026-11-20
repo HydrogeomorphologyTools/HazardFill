@@ -11,6 +11,7 @@
 
 1. Apri il link e premi **«Prova la versione online»**.
 2. Nella sezione **«Carica i tuoi dati»** (già aperta):
+   * scegli una **cartella**: la pagina trova raster ed edifici (anche shapefile composti da più file) e ti fa scegliere su quali lavorare; oppure
    * premi **«Carica l'esempio (Figna_test)»** per provare subito con i dati di prova; oppure
    * scrivi un nome per l'area, scegli il **GeoTIFF** e, se vuoi, gli **edifici** (shapefile compresso `.zip` con il `.prj`, oppure GeoJSON in EPSG:4326) e premi **«Carica»**.
 3. Imposta i criteri come nella pagina locale (edifici, zone interne, buffer; valori in metri; sorgente edifici anche da **OpenStreetMap**) e guarda le statistiche e la mappa.

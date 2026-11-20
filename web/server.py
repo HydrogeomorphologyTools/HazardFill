@@ -209,10 +209,12 @@ def to_png(arr, code=None, hilite=False, meta=None):
         rgba[m, 3] = 255
     if hilite and code is not None:
         yy, xx = np.indices(arr.shape)
-        stripe = ((yy + xx) // 2) % 2 == 0
+        stripes = {1: ((yy + xx) // 2) % 2 == 0,                 # edifici: diagonale
+                   2: (yy // 2) % 2 == 0,                         # zone interne: orizzontale
+                   3: (xx // 2) % 2 == 0}                         # buffer: verticale
         for st, f in ((1, 0.72), (2, 0.55), (3, 0.38)):          # stessi colori dello stile QGIS
             for k in (1, 2, 3):
-                m = (code == st) & (arr == k) & stripe
+                m = (code == st) & (arr == k) & stripes[st]
                 rgba[m, :3] = tuple(int(v * f) for v in COLORS[k])
     buf = io.BytesIO()
     Image.fromarray(rgba, "RGBA").save(buf, "PNG", optimize=False, compress_level=3)

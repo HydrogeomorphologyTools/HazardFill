@@ -4,7 +4,7 @@
  * Copyright (C) 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta - CNR-GEO (Istituto di Geoscienze). Licenza GNU GPL v2. */
 (function () {
   'use strict';
-  const VERSION = '1.1.1';
+  const VERSION = '1.2.0';
   const $ = (id) => document.getElementById(id);
   const COLORS = { 1: [255, 235, 59], 2: [255, 140, 0], 3: [214, 40, 40] };
   const FF = { 1: 0.72, 2: 0.55, 3: 0.38 };
@@ -149,7 +149,7 @@
         let c = COLORS[v];
         const cd = code ? code[i] : 0;
         let r = c[0], g = c[1], b = c[2];
-        if (cd > 0 && ((x + y) >> 1) % 2 === 0) { const f = FF[cd]; r = Math.trunc(r * f); g = Math.trunc(g * f); b = Math.trunc(b * f); }
+        if (cd > 0 && (cd === 1 ? ((x + y) >> 1) % 2 === 0 : cd === 2 ? (y >> 1) % 2 === 0 : (x >> 1) % 2 === 0)) { const f = FF[cd]; r = Math.trunc(r * f); g = Math.trunc(g * f); b = Math.trunc(b * f); }
         const o = p * 4;
         d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255;
       }

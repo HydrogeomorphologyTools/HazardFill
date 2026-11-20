@@ -18,11 +18,20 @@ from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform, Qgs
                        QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
                        QgsProcessingParameterRasterLayer, QgsProject, QgsWkbTypes)
 from qgis.PyQt.QtGui import QIcon
+from qgis.core import QgsProcessingLayerPostProcessorInterface, QgsProcessingOutputRasterLayer, QgsRasterLayer
 
 from . import core, vector_export
 
 HERE = os.path.dirname(__file__)
 HMODES = ["max", "major", "near"]
+
+
+def _qml_file(clean):
+    """File .qml con la tavolozza dei codici (nella cartella temporanea)."""
+    path = os.path.join(tempfile.gettempdir(), "hazardfill_style_%s.qml" % ("clean" if clean else "codes"))
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(core.make_qml(clean))
+    return path
 
 
 def read_raster(layer):
@@ -79,6 +88,22 @@ def write_tif(path, arr, gt, crs, tags):
         f.write(core.make_qml("clean" in tags.get("variant", "")))
 
 
+class StylePostProcessor(QgsProcessingLayerPostProcessorInterface):
+    """Applica lo stile a classi singole (con la tavolozza dei codici) al layer caricato in QGIS,
+    anche quando il raster e' un file temporaneo (dove il file .qml accanto non viene letto)."""
+    keep = []
+
+    def __init__(self, qml):
+        super().__init__()
+        self.qml = qml
+        StylePostProcessor.keep.append(self)
+
+    def postProcessLayer(self, layer, context, feedback):
+        if isinstance(layer, QgsRasterLayer):
+            layer.loadNamedStyle(self.qml)
+            layer.triggerRepaint()
+
+
 def vector_export_layers():
     return core.VECTOR_LAYERS
 
@@ -88,7 +113,7 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
     BLD, BPX = "APPLY_BUILDINGS", "BUILDING_TOLERANCE"
     HOLES, AREA, ALL, GAP, HMODE = "APPLY_HOLES", "AREA", "ALL_HOLES", "GAP", "FILL_MODE"
     BUF, BUFPX = "APPLY_BUFFER", "BUFFER_WIDTH"
-    OUT, OUT_CLEAN, OUT_VECTOR = "OUTPUT", "OUTPUT_CLEAN", "OUTPUT_VECTOR"
+    OUT, OUT_CLEAN, OUT_VECTOR, CREATE_CLEAN = "OUTPUT", "OUTPUT_CLEAN", "OUTPUT_VECTOR", "CREATE_CLEAN"
 
     def name(self):
         return "fillhazard"
@@ -145,14 +170,15 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterBoolean(self.BLD, "0. Applica criterio edifici", True))
         self.addParameter(QgsProcessingParameterNumber(self.BPX, "   Edifici: tolleranza dal bordo (m)", QgsProcessingParameterNumber.Double, 0.0, minValue=0, maxValue=100))
         self.addParameter(QgsProcessingParameterBoolean(self.HOLES, "1. Chiudi zone interne", True))
-        self.addParameter(QgsProcessingParameterNumber(self.AREA, "   Zone interne: area massima da chiudere (m²)", QgsProcessingParameterNumber.Double, 10.0, minValue=0))
+        self.addParameter(QgsProcessingParameterNumber(self.AREA, "   Zone interne: area massima da chiudere (m²)", QgsProcessingParameterNumber.Double, 10.0, minValue=0, maxValue=100000))
         self.addParameter(QgsProcessingParameterBoolean(self.ALL, "   Chiudi TUTTE le zone interne (ignora l'area)", False))
         self.addParameter(QgsProcessingParameterNumber(self.GAP, "   Varco sigillabile (m, 0 = solo zone chiuse)", QgsProcessingParameterNumber.Double, 0.0, minValue=0))
         self.addParameter(QgsProcessingParameterEnum(self.HMODE, "   Valore di riempimento", ["massimo del contorno", "più frequente del contorno (maggioranza)", "più vicino"], defaultValue=1))
         self.addParameter(QgsProcessingParameterBoolean(self.BUF, "2. Buffer graduato su classe 0", True))
         self.addParameter(QgsProcessingParameterNumber(self.BUFPX, "   Buffer: larghezza (m)", QgsProcessingParameterNumber.Double, 1.0, minValue=0.1, maxValue=1000))
         self.addParameter(QgsProcessingParameterRasterDestination(self.OUT, "Raster elaborato (con codici di modifica)"))
-        self.addParameter(QgsProcessingParameterRasterDestination(self.OUT_CLEAN, "Raster elaborato pulito (solo 0-3)", optional=True, createByDefault=False))
+        self.addParameter(QgsProcessingParameterBoolean(self.CREATE_CLEAN, "Crea anche il raster pulito (solo classi 0-3, senza codici)", False))
+        self.addOutput(QgsProcessingOutputRasterLayer(self.OUT_CLEAN, "Raster pulito (solo 0-3)"))
         self.addParameter(QgsProcessingParameterFileDestination(self.OUT_VECTOR, "Vettoriale GeoPackage con codici (4 livelli)", "GeoPackage (*.gpkg)", optional=True, createByDefault=False))
 
     # ------------------------------------------------------------------
@@ -173,7 +199,7 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
                  buf=self.parameterAsBool(parameters, self.BUF, context),
                  bufm=self.parameterAsDouble(parameters, self.BUFPX, context))
         out_path = self.parameterAsOutputLayer(parameters, self.OUT, context)
-        clean_path = self.parameterAsOutputLayer(parameters, self.OUT_CLEAN, context) if self.OUT_CLEAN in parameters and parameters[self.OUT_CLEAN] else None
+        make_clean = self.parameterAsBool(parameters, self.CREATE_CLEAN, context)
         vec_path = self.parameterAsFileOutput(parameters, self.OUT_VECTOR, context) if self.OUT_VECTOR in parameters and parameters[self.OUT_VECTOR] else None
 
         feedback.pushInfo("Lettura raster...")
@@ -247,9 +273,15 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
         write_tif(out_path, core.with_codes(out, code), gt, crs, dict(base, variant="codes",
                   codes="0=nodata/zero;1-3=pericolo originale;1x=modificato da edifici;2x=da zone interne;3x=da buffer (x=livello 1-3)"))
         res_d = {self.OUT: out_path}
-        if clean_path:
+        if context.willLoadLayerOnCompletion(out_path):                     # stile a classi singole sul raster caricato
+            context.layerToLoadOnCompletionDetails(out_path).setPostProcessor(StylePostProcessor(_qml_file(False)))
+        if make_clean:
+            clean_path = os.path.splitext(out_path)[0] + "_pulito.tif"
             write_tif(clean_path, out, gt, crs, dict(base, variant="clean", codes="0=nodata/zero;1=basso;2=medio;3=alto"))
             res_d[self.OUT_CLEAN] = clean_path
+            det = QgsProcessingContext.LayerDetails("Raster pulito (0-3)", context.project(), self.OUT_CLEAN)
+            det.setPostProcessor(StylePostProcessor(_qml_file(True)))
+            context.addLayerToLoadOnCompletion(clean_path, det)
         if vec_path:
             feedback.pushInfo("Poligonizzazione (GeoPackage con 4 livelli)...")
             info = vector_export.write_gpkg(vec_path, h, out, core.with_codes(out, code), gt, wkt)

@@ -21,7 +21,7 @@ import urllib.request
 import numpy as np
 from scipy import ndimage as ndi
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 COLORS = {1: (255, 235, 59), 2: (255, 140, 0), 3: (214, 40, 40)}
 STEP_NAME = {1: "edifici", 2: "zone interne", 3: "buffer"}
@@ -379,19 +379,35 @@ def classe_of(code):
     return code % 10 if code >= 10 else code
 
 
+HATCH_ANGLE = {1: 45, 2: 0, 3: 90}      # retino per criterio: edifici diagonale, zone interne orizzontale, buffer verticale
+
+
 def make_vector_qml(field, clean=False):
-    """Stile QGIS categorizzato (stessi colori del raster) per il campo `field` (codice o classe)."""
+    """Stile QGIS categorizzato (stessi colori del raster) per il campo `field` (codice o classe).
+    Per i codici di modifica (11-33) si aggiunge un retino di linee che dipende dal criterio."""
     rows = [r for r in code_table(clean) if r[0] != 0]
     cats, syms = "", ""
+    ddp = ('<data_defined_properties><Option type="Map"><Option name="name" value="" type="QString"/>'
+           '<Option name="properties"/><Option name="type" value="collection" type="QString"/></Option></data_defined_properties>')
     for i, (v, c, l) in enumerate(rows):
         cats += '<category value="%d" label="%s" symbol="%d" render="true"/>' % (v, l, i)
-        syms += ('<symbol type="fill" name="%d" alpha="1" clip_to_extent="1" force_rhr="0">'
-                 '<data_defined_properties><Option type="Map"><Option name="name" value="" type="QString"/>'
-                 '<Option name="properties"/><Option name="type" value="collection" type="QString"/></Option></data_defined_properties>'
-                 '<layer class="SimpleFill" enabled="1" locked="0" pass="0"><Option type="Map">'
-                 '<Option name="color" value="%d,%d,%d,255" type="QString"/>'
-                 '<Option name="outline_style" value="no" type="QString"/>'
-                 '<Option name="style" value="solid" type="QString"/></Option></layer></symbol>') % (i, c[0], c[1], c[2])
+        layers = ('<layer class="SimpleFill" enabled="1" locked="0" pass="0"><Option type="Map">'
+                  '<Option name="color" value="%d,%d,%d,255" type="QString"/>'
+                  '<Option name="outline_style" value="no" type="QString"/>'
+                  '<Option name="style" value="solid" type="QString"/></Option></layer>') % (c[0], c[1], c[2])
+        if v >= 10:
+            d = tuple(int(x * 0.55) for x in c[:3])
+            layers += ('<layer class="LinePatternFill" enabled="1" locked="0" pass="0"><Option type="Map">'
+                       '<Option name="angle" value="%d" type="QString"/><Option name="clip_mode" value="during_render" type="QString"/>'
+                       '<Option name="coordinate_reference" value="feature" type="QString"/>'
+                       '<Option name="distance" value="1.1" type="QString"/><Option name="distance_unit" value="MM" type="QString"/>'
+                       '</Option><symbol type="line" name="@%d@1" alpha="1" clip_to_extent="1" force_rhr="0">%s'
+                       '<layer class="SimpleLine" enabled="1" locked="0" pass="0"><Option type="Map">'
+                       '<Option name="line_color" value="%d,%d,%d,255" type="QString"/>'
+                       '<Option name="line_width" value="0.2" type="QString"/><Option name="line_width_unit" value="MM" type="QString"/>'
+                       '<Option name="capstyle" value="flat" type="QString"/></Option></layer></symbol></layer>'
+                       ) % (HATCH_ANGLE[v // 10], i, ddp, d[0], d[1], d[2])
+        syms += '<symbol type="fill" name="%d" alpha="1" clip_to_extent="1" force_rhr="0">%s%s</symbol>' % (i, ddp, layers)
     return ('<!DOCTYPE qgis PUBLIC "http://mrcc.com/qgis.dtd" "SYSTEM"><qgis version="3.28.0" styleCategories="Symbology">'
             '<renderer-v2 type="categorizedSymbol" attr="%s" forceraster="0" symbollevels="0" enableorderby="0">'
             '<categories>%s</categories><symbols>%s</symbols></renderer-v2></qgis>' % (field, cats, syms))
@@ -419,3 +435,32 @@ def add_gpkg_styles(path, styles, geom_col="geom"):
                     (name, gc[0] if gc else geom_col, name, qml))
     con.commit()
     con.close()
+
+
+# ------------------------------------------------------------------ ricerca dei dati in una cartella
+RASTER_EXT = (".tif", ".tiff")
+VECTOR_EXT = (".shp", ".gpkg", ".geojson", ".json", ".zip")
+
+
+def scan_folder(root, max_depth=4):
+    """Cerca in una cartella (e sottocartelle) i raster di pericolosita' (.tif) e i vettoriali degli edifici
+    (.shp, .gpkg, .geojson, .zip con shapefile). Restituisce {'rasters': [...], 'buildings': [...]} con percorsi
+    completi; i file il cui percorso richiama gli edifici ('edific', 'building') sono messi in testa."""
+    root = os.path.abspath(root)
+    base = root.rstrip(os.sep).count(os.sep)
+    rasters, vectors = [], []
+    for d, dirs, files in os.walk(root):
+        if d.rstrip(os.sep).count(os.sep) - base >= max_depth:
+            dirs[:] = []
+        for f in files:
+            low = f.lower()
+            full = os.path.join(d, f)
+            if low.endswith(RASTER_EXT):
+                rasters.append(full)
+            elif low.endswith(VECTOR_EXT):
+                vectors.append(full)
+
+    def hinted(p):
+        q = p.lower()
+        return 0 if ("edific" in q or "building" in q) else 1
+    return {"rasters": sorted(rasters), "buildings": sorted(vectors, key=lambda p: (hinted(p), p))}

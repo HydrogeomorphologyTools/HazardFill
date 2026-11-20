@@ -52,8 +52,9 @@ Tutti gli esempi sintetici (zone interne, varco, valore di riempimento, buffer) 
 * **Plugin QGIS** (algoritmi di Processing, quindi anche in batch e nei modelli grafici), **pagina web locale** e **versione online di prova** (nel browser, senza installazione) con la stessa logica e gli stessi risultati.
 * **Edifici**: da shapefile, GeoPackage o GeoJSON (qualsiasi CRS), oppure **ricavati/integrati da OpenStreetMap** (un edificio OSM è aggiunto solo se meno del 20% della sua superficie cade su edifici già presenti).
 * **Tracciabilità**: ogni pixel modificato ha un **codice** (`classe + 10 × criterio`: 11-13 edifici, 21-23 zone interne, 31-33 buffer).
-* **Esporta mappatura**: raster con codici, raster pulito (0-3) con stile QGIS `.qml`, **GeoPackage vettoriale** a 4 livelli (`originale`, `omogeneizzata`, `mappa_con_codici`, `modifiche`) con stile incorporato.
+* **Esporta mappatura**: un raster con codici a classi singole (giallo→rosso) con stile QGIS (il raster pulito 0-3 su richiesta), **GeoPackage vettoriale** a 4 livelli (`originale`, `omogeneizzata`, `mappa_con_codici`, `modifiche`) con stile incorporato.
 * **Esporta mappa (PNG)**: titolo, legenda dei soli criteri applicati, freccia del nord, scala, 150 dpi; scelta *come a schermo / originale / con riempimenti*.
+* **Scelta della cartella**: dal plugin («Apri cartella di dati…») e dalla pagina web si sceglie una cartella; raster ed edifici trovati si propongono in due menù a tendina (resta anche la scelta dei singoli file).
 * **Pagina web**: carta con basi (OSM, satellite, Sentinel-2, topografica), **hillshade** calcolato dal DEM, sovrapposizione dei layer, confronto con l'originale, statistiche (m² per classe, pixel modificati per criterio), **caricamento di GeoTIFF ed edifici dal computer** o lavoro su una cartella di dati.
 * Tutti i valori in **metri e metri quadrati**: la risoluzione del raster è usata per convertirli in pixel.
 * **Help – utilizzo** con esempi sintetici calcolati con il codice vero.

@@ -3,6 +3,7 @@
 <title>HazardFill (HF) – chiusura buchi nelle mappe di pericolosità</title><link rel="icon" type="image/svg+xml" href="/logo.svg">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
  html,body{margin:0;height:100%;font:13px system-ui,Segoe UI,sans-serif;color:#222}
  #app{display:flex;height:100%}
@@ -27,6 +28,13 @@
  <h3>Caso</h3><select id="case"></select>
  <details id="updet" style="display:none;margin-top:6px"><summary><b>Carica i tuoi dati</b></summary>
   <div class="box"><small>GeoTIFF a una banda, in CRS proiettato (metri), con le sole classi 0-3 (nodata = 0). Edifici (facoltativi): shapefile compresso .zip, GeoPackage o GeoJSON. I file restano sul computer su cui gira il server.</small>
+   <div class="row">cartella <input id="updir" type="file" webkitdirectory multiple style="flex:1"></div>
+   <div id="dirsel" style="display:none">
+    <div class="row">raster <select id="dirr" style="flex:1"></select></div>
+    <div class="row">edifici <select id="dirb" style="flex:1"></select></div>
+    <div class="row"><button id="dirgo">Carica dalla cartella</button> <small id="dirmsg"></small></div>
+   </div>
+   <small>oppure scegli i singoli file:</small>
    <div class="row">nome area <input id="upa" type="text" placeholder="es. MiaArea" style="flex:1"></div>
    <div class="row">GeoTIFF <input id="upr" type="file" accept=".tif,.tiff" style="flex:1"></div>
    <div class="row">edifici <input id="upb" type="file" accept=".zip,.gpkg,.geojson,.json" style="flex:1"></div>
@@ -43,7 +51,7 @@
   <small>OSM: gli edifici vengono scaricati da OpenStreetMap (Overpass) per l'estensione del raster; quelli già coperti dai tuoi (&ge;20% di sovrapposizione) non vengono aggiunti. La prima volta può richiedere qualche decina di secondi.</small></div>
  <div class="box"><label><b><input type="checkbox" id="holes"> 1. Chiusura zone interne</b></label>
   <small>zone a 0 interne al dominio (non collegate al bordo del raster), circondate da valori &gt;0, con area ≤ A</small>
-  <div class="row">A m² <input id="area" type="range" min="10" max="20000" step="10" value="10"><b id="areav">10</b></div>
+  <div class="row">A m² <input id="area" type="range" min="10" max="100000" step="10" value="10"><b id="areav">10</b></div>
   <div class="row">varco sigillabile <input id="gap" type="range" min="0" max="150" step="5" value="0"><b id="gapv">0</b> m</div>
   <small>0 = solo zone non collegate al bordo; &gt;0 = anche zone con aperture strette (&lt; varco) verso l'esterno</small>
   <label><input type="checkbox" id="allint"> <b>chiudi TUTTE le zone interne</b> <small>(nessun limite di area)</small></label>
@@ -62,9 +70,9 @@
   <div class="row" style="margin-top:4px"><button id="xpng">Scarica immagine PNG</button></div><small id="xmsg"></small></div>
  <h3>Esporta mappatura</h3>
  <div class="box"><small>Raster (GeoTIFF uint8 nella griglia originale) o vettoriale (GeoPackage) della mappatura elaborata, con i parametri attuali scritti nei metadati.</small>
-  <div class="row" style="margin-top:4px"><button id="exp1">Con codici di modifica</button><button id="exp2">Pulito (1-3)</button></div>
-  <div class="row" style="margin-top:4px"><button id="sty">Stile QGIS (.qml)</button><button id="expv">Vettoriale (GeoPackage) con codici</button></div>
-  <small>Il GeoPackage contiene 4 livelli (originale, omogeneizzata, mappa_con_codici, modifiche) con gli stessi codici del raster e lo stile QGIS incorporato; l'esportazione può richiedere decine di secondi.</small><br><small>Per colori ed etichette del raster in QGIS scarica anche lo .qml e salvalo con lo stesso nome del .tif, nella stessa cartella. Il GeoTIFF ha nodata = 0.</small></div>
+  <div class="row" style="margin-top:4px"><button id="exp1">Raster con codici + stile QGIS</button></div>
+  <div class="row" style="margin-top:4px"><button id="exp2">Solo classi 0-3 (+ stile)</button><button id="expv">Vettoriale (GeoPackage) con codici</button></div>
+  <small>Il GeoPackage contiene 4 livelli (originale, omogeneizzata, mappa_con_codici, modifiche) con gli stessi codici del raster e lo stile QGIS incorporato; l'esportazione può richiedere decine di secondi.</small><br><small>Il pulsante scarica il raster e il suo stile <code>.qml</code>: salvali nella stessa cartella (lo stesso nome) e QGIS mostra i valori a classi singole, dal giallo al rosso. Il GeoTIFF ha nodata = 0.</small></div>
  <h3>Legenda e codici</h3>
  <table id="leg">
   <tr><th>codice</th><th>significato</th></tr>
@@ -73,8 +81,8 @@
   <tr><td><span class="sw" style="background:#ff8c00"></span>2</td><td style="text-align:left">pericolo medio (originale)</td></tr>
   <tr><td><span class="sw" style="background:#d62828"></span>3</td><td style="text-align:left">pericolo alto (originale)</td></tr>
   <tr><td><span class="sw" style="background:repeating-linear-gradient(45deg,#ffeb3b 0 3px,#b7a92a 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#ff8c00 0 3px,#b76400 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#d62828 0 3px,#9a1c1c 3px 6px)"></span><br>11 12 13</td><td style="text-align:left">valore 1/2/3 assegnato da <b>edifici</b></td></tr>
-  <tr><td><span class="sw" style="background:repeating-linear-gradient(45deg,#ffeb3b 0 3px,#8c8120 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#ff8c00 0 3px,#8c4d00 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#d62828 0 3px,#751616 3px 6px)"></span><br>21 22 23</td><td style="text-align:left">valore 1/2/3 assegnato da <b>zone interne</b></td></tr>
-  <tr><td><span class="sw" style="background:repeating-linear-gradient(45deg,#ffeb3b 0 3px,#605916 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#ff8c00 0 3px,#603500 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(45deg,#d62828 0 3px,#510f0f 3px 6px)"></span><br>31 32 33</td><td style="text-align:left">valore 1/2/3 assegnato da <b>buffer graduato</b></td></tr>
+  <tr><td><span class="sw" style="background:repeating-linear-gradient(0deg,#ffeb3b 0 3px,#8c8120 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(0deg,#ff8c00 0 3px,#8c4d00 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(0deg,#d62828 0 3px,#751616 3px 6px)"></span><br>21 22 23</td><td style="text-align:left">valore 1/2/3 assegnato da <b>zone interne</b></td></tr>
+  <tr><td><span class="sw" style="background:repeating-linear-gradient(90deg,#ffeb3b 0 3px,#605916 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(90deg,#ff8c00 0 3px,#603500 3px 6px)"></span><span class="sw" style="background:repeating-linear-gradient(90deg,#d62828 0 3px,#510f0f 3px 6px)"></span><br>31 32 33</td><td style="text-align:left">valore 1/2/3 assegnato da <b>buffer graduato</b></td></tr>
  </table>
  <small>Cifra delle decine = passo che ha modificato il pixel; unità = livello di pericolo. In mappa i pixel modificati sono tratteggiati con il colore del codice (più scuro del livello); nel file esportato "con codici" hanno 11–33.</small>
 </div>
@@ -209,10 +217,10 @@ $('op').oninput=()=>{const o=+$('op').value; Object.values(imgLayers).forEach(x=
 $('showb').onchange=()=>{ if(!bldLayer)return; $('showb').checked?bldLayer.addTo(map):map.removeLayer(bldLayer)};
 $('showorig').onchange=()=>showOrig(cur.layers.find(x=>x.name==$('proc').value));
 
-$('exp1').onclick=()=>BACKEND.exportRaster(params().toString(),false);
-$('sty').onclick=()=>{const n=$('proc').value.replace(/\.tif+$/,'').replace(/.*\//,''); BACKEND.exportStyle(n,false)};
+const styleName=()=>$('proc').value.replace(/\.tif+$/,'').replace(/.*\//,'');
+$('exp1').onclick=()=>{BACKEND.exportRaster(params().toString(),false); setTimeout(()=>BACKEND.exportStyle(styleName(),false),900);};
 $('expv').onclick=()=>{$('expv').textContent='preparo vettoriale…'; BACKEND.exportVector(params().toString()); setTimeout(()=>$('expv').textContent='Vettoriale (GeoPackage) con codici',8000)};
-$('exp2').onclick=()=>BACKEND.exportRaster(params().toString(),true);
+$('exp2').onclick=()=>{BACKEND.exportRaster(params().toString(),true); setTimeout(()=>BACKEND.exportStyle(styleName(),true),900);};
 
 // ---- export mappa con legenda, nord e scala
 let lastProc=null;
@@ -277,7 +285,9 @@ async function exportMap(mode,title,withTiles){
   const hatchSw=(x,y,w,hh,k,st)=>{
     g.save(); g.beginPath(); g.rect(x,y,w,hh); g.clip(); g.fillStyle=rgb(BASE[k]); g.fillRect(x,y,w,hh);
     g.strokeStyle=rgb(BASE[k],FF[st]); g.lineWidth=2.2;
-    for(let q=-hh;q<w+hh;q+=4){g.beginPath(); g.moveTo(x+q,y+hh); g.lineTo(x+q+hh,y); g.stroke();}
+    if(st===1){for(let q=-hh;q<w+hh;q+=4){g.beginPath(); g.moveTo(x+q,y+hh); g.lineTo(x+q+hh,y); g.stroke();}}
+    else if(st===2){for(let q=1;q<hh;q+=4){g.beginPath(); g.moveTo(x,y+q); g.lineTo(x+w,y+q); g.stroke();}}
+    else{for(let q=1;q<w;q+=4){g.beginPath(); g.moveTo(x+q,y); g.lineTo(x+q,y+hh); g.stroke();}}
     g.restore(); g.strokeStyle='#666'; g.lineWidth=.8; g.strokeRect(x+.5,y+.5,w,hh);
   };
   // scala (in basso a sinistra, ingrandita K volte)
@@ -406,5 +416,59 @@ $('upgo').onclick=async()=>{
     msg.style.color='#080'; msg.innerHTML=out.join('<br>');
   }catch(e){ msg.style.color='#b00'; msg.textContent='errore: '+e; }
   $('upgo').disabled=false;
+};
+
+// ---- scelta di una cartella: trova raster ed edifici e fa scegliere su quali lavorare
+function scanFiles(items){                       // items: [{file, path}]
+  const ext=p=>((p.match(/\.([^.\/\\]+)$/)||[])[1]||'').toLowerCase();
+  const rasters=[], vecs=[], shp={};
+  for(const it of items){
+    const e=ext(it.path);
+    if(e==='tif'||e==='tiff') rasters.push(it);
+    else if(['zip','geojson','json','gpkg'].includes(e)) vecs.push({path:it.path,files:[it.file],kind:e});
+    else if(['shp','shx','dbf','prj','cpg'].includes(e)){ const b=it.path.replace(/\.[^.]+$/,''); (shp[b]=shp[b]||[]).push({file:it.file,ext:e,path:it.path}); }
+  }
+  for(const b of Object.keys(shp)) if(shp[b].some(f=>f.ext==='shp')) vecs.push({path:b+'.shp',files:shp[b].map(f=>f.file),names:shp[b].map(f=>f.path.split(/[\/\\]/).pop()),kind:'shp'});
+  const hint=p=>/edific|building/i.test(p)?0:1;
+  rasters.sort((a,b)=>a.path.localeCompare(b.path));
+  vecs.sort((a,b)=>hint(a.path)-hint(b.path)||a.path.localeCompare(b.path));
+  return {rasters,vecs};
+}
+let dirScan=null;
+function fillDirSelects(sc){
+  dirScan=sc; const R=$('dirr'), B=$('dirb'); R.innerHTML=''; B.innerHTML='';
+  sc.rasters.forEach((r,i)=>R.add(new Option(r.path,i)));
+  B.add(new Option('(nessuno: edifici solo da OpenStreetMap)','-1'));
+  const bad=v=>v.kind==='gpkg'&&BACKEND.vector===false;
+  sc.vecs.forEach((v,i)=>{ const o=new Option(v.path+(bad(v)?' (GeoPackage non supportato online: usa lo zip)':''),i); o.disabled=bad(v); B.add(o); });
+  B.value=String(sc.vecs.findIndex(v=>!bad(v)));
+  $('dirsel').style.display=sc.rasters.length?'block':'none';
+  $('dirmsg').style.color='#666';
+  $('dirmsg').textContent='Trovati '+sc.rasters.length+' raster e '+sc.vecs.length+' file di edifici.';
+}
+$('updir').onchange=()=>fillDirSelects(scanFiles([...$('updir').files].map(f=>({file:f,path:f.webkitRelativePath||f.name}))));
+$('dirgo').onclick=async()=>{
+  const r=dirScan.rasters[+$('dirr').value], bi=+$('dirb').value, msg=$('dirmsg');
+  const area=r.path.split(/[\/\\]/).pop().replace(/\.[^.]+$/,'').replace(/[^\w\-]+/g,'_');
+  $('dirgo').disabled=true; msg.style.color='#666'; const out=[];
+  try{
+    msg.textContent='carico '+r.path+'…';
+    let j=await sendFile('raster',r.file,area); if(j.error) throw new Error(j.error);
+    const last=j; (j.warnings||[]).forEach(w=>out.push('⚠ '+w));
+    if(bi>=0){
+      const v=dirScan.vecs[bi]; let file=v.files[0];
+      if(v.kind==='shp'){
+        if(typeof JSZip==='undefined') throw new Error('libreria zip non disponibile: comprimi lo shapefile in uno .zip e sceglilo');
+        const z=new JSZip(); v.files.forEach((f,i)=>z.file(v.names[i],f)); file=new File([await z.generateAsync({type:'blob'})],'edifici.zip');
+      }
+      msg.textContent='carico gli edifici…';
+      j=await sendFile('buildings',file,area); if(j.error) throw new Error(j.error);
+      (j.warnings||[]).forEach(w=>out.push('⚠ '+w));
+    }
+    msg.textContent='preparo la mappa…';
+    await loadInfo(last.case);
+    msg.style.color='#080'; msg.innerHTML='caricato ✔'+(out.length?'<br>'+out.join('<br>'):'');
+  }catch(e){ msg.style.color='#b00'; msg.textContent=String(e.message||e); }
+  $('dirgo').disabled=false;
 };
 </script></body></html>
