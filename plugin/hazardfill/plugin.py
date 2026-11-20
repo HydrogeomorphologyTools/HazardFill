@@ -65,9 +65,14 @@ class HazardFillPlugin:
         self.actions.append(a)
         return a
 
+    def initProcessing(self):
+        """Registra gli algoritmi di Processing (anche per qgis_process, senza interfaccia grafica)."""
+        if self.provider is None:
+            self.provider = HazardFillProvider()
+            QgsApplication.processingRegistry().addProvider(self.provider)
+
     def initGui(self):
-        self.provider = HazardFillProvider()
-        QgsApplication.processingRegistry().addProvider(self.provider)
+        self.initProcessing()
         run = self._act("Elabora mappa di pericolosità…", lambda: self._dlg("hazardfill:fillhazard"))
         self._act("Esporta mappa con legenda, nord e scala (PNG)…", lambda: self._dlg("hazardfill:exportmap"))
         self._act("Aggiungi basi cartografiche (satellite, hillshade, ...)", self.basemaps)

@@ -11,6 +11,7 @@ repository=https://github.com/HydrogeomorphologyTools/HazardFill
 homepage=https://github.com/HydrogeomorphologyTools/HazardFill
 tags=hazard,debris flow,raster,buildings,processing,pre-screening
 category=Raster
+hasProcessingProvider=yes
 icon=icon.svg
 experimental=False
 deprecated=False
