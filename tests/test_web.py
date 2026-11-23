@@ -24,6 +24,10 @@ import server  # noqa: E402
 
 EXAMPLE = os.path.join(ROOT, "examples")
 
+# i dati di prova Figna_test sono temporaneamente fuori dal repository: senza, questi test vengono saltati
+pytestmark = pytest.mark.skipif(not os.path.exists(os.path.join(EXAMPLE, "Figna_test", "Mappa_Pericolo_V1.tif")),
+                                reason="dati di prova Figna_test non presenti")
+
 
 @pytest.fixture(scope="module")
 def base():

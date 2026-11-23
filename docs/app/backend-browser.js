@@ -444,6 +444,9 @@
     if (!go) return;
     const sm = document.querySelector('#updet .box small');
     if (sm) sm.innerHTML = 'GeoTIFF a una banda, in CRS proiettato (metri), con le sole classi 0-3 (nodata = 0). Edifici (facoltativi): shapefile compresso .zip (con .prj) oppure GeoJSON in EPSG:4326. <b>Tutto il calcolo avviene nel tuo browser: i file non vengono inviati a nessun server.</b>';
+    // il pulsante dell'esempio compare solo se i dati di prova sono presenti sul sito
+    fetch('example/Mappa_Pericolo_V1.tif', { method: 'HEAD' }).then(r => { if (r.ok) addExample(); }).catch(() => {});
+    function addExample() {
     const b = document.createElement('button');
     b.id = 'upex'; b.textContent = 'Carica l\'esempio (Figna_test)'; b.style.marginLeft = '6px';
     go.parentNode.appendChild(b);
@@ -463,5 +466,6 @@
       } catch (err) { msg.style.color = '#b00'; msg.textContent = String(err.message || err); }
       b.disabled = false;
     };
+    }
   });
 })();

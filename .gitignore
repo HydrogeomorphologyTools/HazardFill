@@ -12,3 +12,7 @@ web/osm_cache/
 tests/_out/
 *.tmp
 *.aux.xml
+
+# dati di prova Figna_test: temporaneamente fuori dal repository (restano in locale)
+examples/Figna_test/
+docs/app/example/

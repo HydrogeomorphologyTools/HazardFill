@@ -1,5 +1,7 @@
 # Esempio passo-passo: Figna_test
 
+> **I dati di prova sono temporaneamente non disponibili** (saranno ripubblicati): le istruzioni qui sotto valgono con qualsiasi tuo raster di pericolosità.
+
 > **I dati di [`examples/Figna_test`](../examples/Figna_test) sono dati di prova**: non rappresentano mappature di pericolosità reali né ufficiali e servono solo a mostrare come funziona lo strumento.
 
 La cartella contiene un raster (`Mappa_Pericolo_V1.tif`, 0,5 m, EPSG:32632, classi 0-3) e gli edifici (`Edifici/Edifici.shp`).
