@@ -12,12 +12,12 @@ cd HazardFill/web
 pip install -r requirements.txt
 ```
 
-In alternativa scarica `HazardFill_web_<versione>.zip` dalle [release](https://github.com/HydrogeomorphologyTools/HazardFill/releases): contiene il server, la pagina, il nucleo di calcolo, l'help e l'esempio `Figna_test`.
+In alternativa scarica `HazardFill_web_<versione>.zip` dalle [release](https://github.com/HydrogeomorphologyTools/HazardFill/releases): contiene il server, la pagina, il nucleo di calcolo, l'help e l'esempio `Spona_test`.
 
 ## Avvio
 
 ```bash
-python server.py                                  # esempio Figna_test (e dati in web/dati) -> http://localhost:8765
+python server.py                                  # esempio Spona_test (e dati in web/dati) -> http://localhost:8765
 python server.py --data /percorso/aree            # una sottocartella per area
 python server.py --data aree1 --data aree2=" (prove)"   # più cartelle, con un suffisso nel nome
 python server.py --port 8800                      # altra porta

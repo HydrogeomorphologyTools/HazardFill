@@ -4,7 +4,7 @@
  * Copyright (C) 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta - CNR-GEO (Istituto di Geoscienze). Licenza GNU GPL v2. */
 (function () {
   'use strict';
-  const VERSION = '1.2.0';
+  const VERSION = '1.2.1';
   const $ = (id) => document.getElementById(id);
   const COLORS = { 1: [255, 235, 59], 2: [255, 140, 0], 3: [214, 40, 40] };
   const FF = { 1: 0.72, 2: 0.55, 3: 0.38 };
@@ -438,31 +438,31 @@
   };
   window.HF_BACKEND = backend;
 
-  // ------------------------------------------------------------------ esempio Figna_test
+  // ------------------------------------------------------------------ esempio Spona_test
   document.addEventListener('DOMContentLoaded', () => {
     const go = $('upgo');
     if (!go) return;
     const sm = document.querySelector('#updet .box small');
     if (sm) sm.innerHTML = 'GeoTIFF a una banda, in CRS proiettato (metri), con le sole classi 0-3 (nodata = 0). Edifici (facoltativi): shapefile compresso .zip (con .prj) oppure GeoJSON in EPSG:4326. <b>Tutto il calcolo avviene nel tuo browser: i file non vengono inviati a nessun server.</b>';
     // il pulsante dell'esempio compare solo se i dati di prova sono presenti sul sito
-    fetch('example/Mappa_Pericolo_V1.tif', { method: 'HEAD' }).then(r => { if (r.ok) addExample(); }).catch(() => {});
+    fetch('example/Mappa_Pericolo_Spona.tif', { method: 'HEAD' }).then(r => { if (r.ok) addExample(); }).catch(() => {});
     function addExample() {
     const b = document.createElement('button');
-    b.id = 'upex'; b.textContent = 'Carica l\'esempio (Figna_test)'; b.style.marginLeft = '6px';
+    b.id = 'upex'; b.textContent = 'Carica l\'esempio (Spona_test)'; b.style.marginLeft = '6px';
     go.parentNode.appendChild(b);
     b.onclick = async () => {
       b.disabled = true;
       const msg = $('upmsg'); msg.style.color = '#666'; msg.textContent = 'scarico l\'esempio…';
       try {
-        const t = await (await fetch('example/Mappa_Pericolo_V1.tif')).blob();
+        const t = await (await fetch('example/Mappa_Pericolo_Spona.tif')).blob();
         const e = await (await fetch('example/Edifici.geojson')).blob();
-        const r1 = await backend.upload('raster', new File([t], 'Mappa_Pericolo_V1.tif'), 'Figna_test');
+        const r1 = await backend.upload('raster', new File([t], 'Mappa_Pericolo_Spona.tif'), 'Spona_test');
         if (r1.error) throw new Error(r1.error);
-        const r2 = await backend.upload('buildings', new File([e], 'Edifici.geojson'), 'Figna_test');
+        const r2 = await backend.upload('buildings', new File([e], 'Edifici.geojson'), 'Spona_test');
         if (r2.error) throw new Error(r2.error);
         msg.textContent = 'preparo la mappa…';
-        await window.loadInfo('Figna_test');
-        msg.style.color = '#080'; msg.innerHTML = 'Figna_test caricato (dati di prova) ✔';
+        await window.loadInfo('Spona_test');
+        msg.style.color = '#080'; msg.innerHTML = 'Spona_test caricato (dati di prova) ✔';
       } catch (err) { msg.style.color = '#b00'; msg.textContent = String(err.message || err); }
       b.disabled = false;
     };

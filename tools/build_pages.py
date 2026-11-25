@@ -48,8 +48,8 @@ def build_app():
 
 def build_example():
     import geopandas as gpd
-    ex = os.path.join(ROOT, "examples", "Figna_test")
-    shutil.copy(os.path.join(ex, "Mappa_Pericolo_V1.tif"), os.path.join(APP, "example", "Mappa_Pericolo_V1.tif"))
+    ex = os.path.join(ROOT, "examples", "Spona_test")
+    shutil.copy(os.path.join(ex, "Mappa_Pericolo_Spona.tif"), os.path.join(APP, "example", "Mappa_Pericolo_Spona.tif"))
     g = gpd.read_file(os.path.join(ex, "Edifici", "Edifici.shp")).to_crs(4326)
     g = g[["geometry"]]
     out = os.path.join(APP, "example", "Edifici.geojson")

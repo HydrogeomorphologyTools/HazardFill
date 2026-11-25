@@ -24,9 +24,9 @@ maximum class touching it (or within a tolerance), (ii) fills unrealistic "no-ha
 local web page, sharing the same numpy/scipy core. Documentation is in Italian. It is *not* a hazard-mapping or modelling tool.
 
 <p align="center">
-<img src="docs/images/figna_originale.jpg" width="49%" alt="Mappatura originale (dati di prova)">
-<img src="docs/images/figna_riempimenti.jpg" width="49%" alt="Mappatura con riempimenti (dati di prova)">
-<br><em>Dati di prova (Figna_test): mappatura originale (a sinistra) e con riempimenti (a destra). I pixel modificati sono tratteggiati e riportano il loro codice.</em>
+<img src="docs/images/spona_originale.jpg" width="49%" alt="Mappatura originale (dati di prova)">
+<img src="docs/images/spona_riempimenti.jpg" width="49%" alt="Mappatura con riempimenti (dati di prova)">
+<br><em>Dati di prova (Spona_test): mappatura originale (a sinistra) e con riempimenti (a destra). I pixel modificati sono tratteggiati e riportano il loro codice.</em>
 </p>
 
 ## A cosa serve
@@ -86,7 +86,7 @@ Serve Python 3.10 o successivo.
 git clone https://github.com/HydrogeomorphologyTools/HazardFill.git
 cd HazardFill/web
 pip install -r requirements.txt
-python server.py            # apre sull'esempio Figna_test: http://localhost:8765
+python server.py            # apre sull'esempio Spona_test: http://localhost:8765
 python server.py --data /percorso/alle/tue/aree      # una sottocartella per area
 ```
 
@@ -104,9 +104,9 @@ Formati, codici di uscita e metadati: [`docs/formati-e-codici.md`](docs/formati-
 
 ## Esempio
 
-La cartella [`examples/Figna_test`](examples/Figna_test) contiene un raster e gli edifici di prova. Il passo-passo, con immagini, è in [`docs/esempio-figna-test.md`](docs/esempio-figna-test.md).
+La cartella [`examples/Spona_test`](examples/Spona_test) contiene un raster e gli edifici di prova (**dati di prova, non mappature ufficiali né valutazioni reali**: solo per provare HF; un edificio è tolto di proposito per mostrare l'integrazione con OpenStreetMap). Il passo-passo, con immagini, è in [`docs/esempio-spona-test.md`](docs/esempio-spona-test.md).
 
-<p align="center"><img src="docs/images/figna_dettaglio_edifici.jpg" width="80%" alt="Dettaglio: edifici, zone interne, buffer"></p>
+<p align="center"><img src="docs/images/spona_dettaglio_edifici.jpg" width="80%" alt="Dettaglio: edifici, zone interne, buffer"></p>
 
 ## Limiti da conoscere
 
@@ -119,7 +119,7 @@ La cartella [`examples/Figna_test`](examples/Figna_test) contiene un raster e gl
 
 ## Documentazione
 
-[`docs/`](docs/README.md): [metodo](docs/metodo.md) · [plugin QGIS](docs/plugin-qgis.md) · [pagina web locale](docs/web-locale.md) · [versione online](docs/versione-online.md) · [formati e codici](docs/formati-e-codici.md) · [esempio Figna_test](docs/esempio-figna-test.md) · [sviluppo e test](docs/sviluppo.md).
+[`docs/`](docs/README.md): [metodo](docs/metodo.md) · [plugin QGIS](docs/plugin-qgis.md) · [pagina web locale](docs/web-locale.md) · [versione online](docs/versione-online.md) · [formati e codici](docs/formati-e-codici.md) · [esempio Spona_test](docs/esempio-spona-test.md) · [sviluppo e test](docs/sviluppo.md).
 
 ## Come citare
 

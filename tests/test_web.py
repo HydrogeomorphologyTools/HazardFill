@@ -24,9 +24,9 @@ import server  # noqa: E402
 
 EXAMPLE = os.path.join(ROOT, "examples")
 
-# i dati di prova Figna_test sono temporaneamente fuori dal repository: senza, questi test vengono saltati
-pytestmark = pytest.mark.skipif(not os.path.exists(os.path.join(EXAMPLE, "Figna_test", "Mappa_Pericolo_V1.tif")),
-                                reason="dati di prova Figna_test non presenti")
+# senza i dati di prova (Spona_test) questi test vengono saltati
+pytestmark = pytest.mark.skipif(not os.path.exists(os.path.join(EXAMPLE, "Spona_test", "Mappa_Pericolo_Spona.tif")),
+                                reason="dati di prova Spona_test non presenti")
 
 
 @pytest.fixture(scope="module")
@@ -51,7 +51,7 @@ def post(base, path, data):
     return json.loads(urllib.request.urlopen(req, timeout=300).read())
 
 
-PARAMS = dict(case="Figna_test", layer="Mappa_Pericolo_V1.tif", bld=1, bm=0, osm=0, holes=1, area=10000, gap=30, hmode="major", buf=1, bufm=1)
+PARAMS = dict(case="Spona_test", layer="Mappa_Pericolo_Spona.tif", bld=1, bm=0, osm=0, holes=1, area=10000, gap=30, hmode="major", buf=1, bufm=1)
 
 
 def test_basic_pages(base):
@@ -70,11 +70,11 @@ def test_dev_endpoints_are_gone(base):
 
 
 def test_auxiliary_files_are_not_rasters(base):
-    aux = os.path.join(EXAMPLE, "Figna_test", "Mappa_Pericolo_V1.tif.aux.xml")
+    aux = os.path.join(EXAMPLE, "Spona_test", "Mappa_Pericolo_Spona.tif.aux.xml")
     open(aux, "w").write("<PAMDataset/>")
     try:
         server.discover()
-        assert list(server.CASES["Figna_test"]["layers"]) == ["Mappa_Pericolo_V1.tif"]
+        assert list(server.CASES["Spona_test"]["layers"]) == ["Mappa_Pericolo_Spona.tif"]
     finally:
         os.remove(aux)
         server.discover()
@@ -82,7 +82,7 @@ def test_auxiliary_files_are_not_rasters(base):
 
 def test_info_and_process(base):
     info = json.loads(get(base, "/api/info")[1])
-    assert "Figna_test" in info and info["Figna_test"]["buildings"]
+    assert "Spona_test" in info and info["Spona_test"]["buildings"]
     d = json.loads(get(base, "/api/process?" + urllib.parse.urlencode(dict(PARAMS, hl=1)))[1])
     st = d["stats"]
     assert d["png"] and st["bld_total"] > 0 and sum(st["mod_by_step"]) > 0
@@ -111,8 +111,8 @@ def test_export_vector_geopackage(base):
     g = gpd.read_file(path, layer="mappa_con_codici")
     assert g.geometry.is_valid.all() and {"codice", "classe", "criterio", "area_m2"} <= set(g.columns)
     # le aree dei poligoni coincidono con i pixel del raster
-    out, code, st = server.process("Figna_test", "Mappa_Pericolo_V1.tif", dict(bld=True, bm=0.0, osm=0, holes=True, area=10000.0, hmode="major", gap=30, buf=True, bufm=1.0))
-    h, meta = server.load_layer(server.CASES["Figna_test"]["layers"]["Mappa_Pericolo_V1.tif"])
+    out, code, st = server.process("Spona_test", "Mappa_Pericolo_Spona.tif", dict(bld=True, bm=0.0, osm=0, holes=True, area=10000.0, hmode="major", gap=30, buf=True, bufm=1.0))
+    h, meta = server.load_layer(server.CASES["Spona_test"]["layers"]["Mappa_Pericolo_Spona.tif"])
     codes = server.core.with_codes(out, code)
     for v in g.codice.unique():
         tot = (codes == v).sum() * meta["res"] ** 2
@@ -122,12 +122,13 @@ def test_export_vector_geopackage(base):
 
 
 def test_upload_valid_and_invalid(base):
-    tif = os.path.join(EXAMPLE, "Figna_test", "Mappa_Pericolo_V1.tif")
+    tif = os.path.join(EXAMPLE, "Spona_test", "Mappa_Pericolo_Spona.tif")
     r = post(base, "/api/upload_data?kind=raster&area=Mia&name=prova.tif", open(tif, "rb").read())
-    assert r["ok"] and r["case"] == "Mia (caricati)" and r["info"]["res"] == 0.5
+    assert r.get("ok"), r
+    assert r["case"] == "Mia (caricati)" and r["info"]["res"] == 1.0
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
-        for f in glob.glob(os.path.join(EXAMPLE, "Figna_test", "Edifici", "Edifici.*")):
+        for f in glob.glob(os.path.join(EXAMPLE, "Spona_test", "Edifici", "Edifici.*")):
             z.write(f, os.path.basename(f))
     r = post(base, "/api/upload_data?kind=buildings&area=Mia&name=e.zip", buf.getvalue())
     assert r["ok"] and r["info"]["features"] > 100

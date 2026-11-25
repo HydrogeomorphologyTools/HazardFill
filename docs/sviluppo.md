@@ -13,7 +13,7 @@ HazardFill/
 │   └── metadata.txt
 ├── web/                    server Python + pagina (index.html) e script di avvio
 ├── docs/app/               versione online (GitHub Pages): generata da web/index.html + backend nel browser
-├── examples/Figna_test/    dati di prova
+├── examples/Spona_test/    dati di prova
 ├── docs/                   documentazione e immagini
 ├── tests/                  test automatici (pytest) e test del plugin con QGIS
 └── tools/                  generazione di help, figure e release

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1 — 2026-11-25
+* **Nuovi dati di prova: Spona_test** (raster 1 m e 186 edifici, in zip, GeoPackage e shapefile) al posto di Figna_test. Sono dati di prova, non mappature ufficiali né valutazioni reali (caso derivato da idrogrammi non «calati» nel contesto locale). Un edificio è tolto di proposito per mostrare l'integrazione con OpenStreetMap.
+* Esempio, immagini e documentazione aggiornati; pulsante «Carica l'esempio» della versione online di nuovo attivo.
+
 ## 1.2.0 — 2026-11-20
 * **Un solo raster di uscita** nel plugin (con codici); il raster pulito (0-3) è una casella facoltativa. Lo stile a **classi singole** (giallo → arancio → rosso, le classi che finiscono con 3 sono le più gravose) è applicato al caricamento, anche per i file temporanei.
 * **Retini per criterio** (edifici oblique, zone interne orizzontali, buffer verticali) nello stile del vettoriale GeoPackage, nella pagina e nelle immagini.

@@ -11,7 +11,7 @@
 | [Pagina web locale](web-locale.md) | installazione, avvio, cartella dei dati, caricamento file, esportazioni, uso da altri computer |
 | [Versione online](versione-online.md) | la pagina su GitHub Pages: uso, limiti, differenze dalla versione locale |
 | [Formati e codici](formati-e-codici.md) | dati in ingresso, uscite, codici dei pixel modificati, metadati |
-| [Esempio Figna_test](esempio-figna-test.md) | passo-passo sui dati di prova, con immagini |
+| [Esempio Spona_test](esempio-spona-test.md) | passo-passo sui dati di prova, con immagini |
 | [Sviluppo e test](sviluppo.md) | struttura del repository, test, costruzione delle release |
 
 Lo strumento contiene anche una pagina **Help – utilizzo** (menu del plugin; link nella pagina web) con gli stessi esempi.

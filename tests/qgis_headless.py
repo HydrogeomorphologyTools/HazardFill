@@ -37,8 +37,8 @@ from hazardfill import core  # noqa: E402
 PROV = HazardFillProvider()
 QgsApplication.processingRegistry().addProvider(PROV)
 
-tif = os.path.join(ROOT, "examples", "Figna_test", "Mappa_Pericolo_V1.tif")
-shp = os.path.join(ROOT, "examples", "Figna_test", "Edifici", "Edifici.shp")
+tif = os.path.join(ROOT, "examples", "Spona_test", "Mappa_Pericolo_Spona.tif")
+shp = os.path.join(ROOT, "examples", "Spona_test", "Edifici", "Edifici.shp")
 tmp = tempfile.mkdtemp(prefix="hf_qgis_")
 results = []
 
@@ -133,7 +133,7 @@ check("raster caricato a classi singole (non sfumato)", lyr_styled.renderer().ty
 from hazardfill.folder_dialog import FolderDialog  # noqa: E402
 dlg = FolderDialog(None, os.path.join(ROOT, "examples"))
 rp, bp = dlg.selection()
-check("cartella: trova raster ed edifici e li propone", dlg.cb_raster.count() == 1 and dlg.cb_build.count() >= 3 and rp.endswith("Mappa_Pericolo_V1.tif") and bp is not None and "dific" in bp, os.path.basename(str(bp)))
+check("cartella: trova raster ed edifici e li propone", dlg.cb_raster.count() == 1 and dlg.cb_build.count() >= 3 and rp.endswith("Mappa_Pericolo_Spona.tif") and bp is not None and "dific" in bp, os.path.basename(str(bp)))
 
 # edifici in un altro CRS (GeoJSON in EPSG:4326)
 gj = os.path.join(tmp, "edifici.geojson")

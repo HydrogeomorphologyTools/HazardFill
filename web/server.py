@@ -243,7 +243,7 @@ def info_case(case):
         bb = [[min(b[0][0] for b in lb), min(b[0][1] for b in lb)], [max(b[1][0] for b in lb), max(b[1][1] for b in lb)]]
         g = g.cx[bb[0][1]:bb[1][1], bb[0][0]:bb[1][0]]   # edifici nell'unione delle estensioni dei layer
         gj = json.loads(g[["geometry"]].to_json())
-    default = "Mappa_Pericolo_V1.tif" if "Mappa_Pericolo_V1.tif" in c["layers"] else next(iter(c["layers"]))
+    default = "Mappa_Pericolo_Spona.tif" if "Mappa_Pericolo_Spona.tif" in c["layers"] else next(iter(c["layers"]))
     return dict(layers=layers, buildings=gj, default=default, bounds=layers[0]["bounds"])
 
 

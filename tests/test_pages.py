@@ -32,12 +32,12 @@ def test_versions_are_aligned():
     assert "version: " + core in read("CITATION.cff")
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(APP, "example", "Mappa_Pericolo_V1.tif")), reason="dati di prova non presenti")
+@pytest.mark.skipif(not os.path.exists(os.path.join(APP, "example", "Mappa_Pericolo_Spona.tif")), reason="dati di prova non presenti")
 def test_example_files_for_pages():
     ex = os.path.join(APP, "example")
     gj = json.load(open(os.path.join(ex, "Edifici.geojson"), encoding="utf-8"))
-    assert len(gj["features"]) == 802
-    assert os.path.getsize(os.path.join(ex, "Mappa_Pericolo_V1.tif")) == os.path.getsize(os.path.join(ROOT, "examples", "Figna_test", "Mappa_Pericolo_V1.tif"))
+    assert len(gj["features"]) == 186
+    assert os.path.getsize(os.path.join(ex, "Mappa_Pericolo_Spona.tif")) == os.path.getsize(os.path.join(ROOT, "examples", "Spona_test", "Mappa_Pericolo_Spona.tif"))
     assert os.path.exists(os.path.join(ROOT, "docs", ".nojekyll"))
 
 
