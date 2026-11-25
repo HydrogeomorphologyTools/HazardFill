@@ -10,6 +10,7 @@ import os
 from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
 
+from .i18n import tr
 from .algorithm import FillHazardAlgorithm
 from .export_algorithm import ExportMapAlgorithm
 
@@ -26,7 +27,7 @@ class HazardFillProvider(QgsProcessingProvider):
         return "HazardFill"
 
     def longName(self):
-        return "HazardFill - chiusura buchi nelle mappe di pericolosità"
+        return tr("HazardFill - filling holes in hazard maps")
 
     def icon(self):
         return QIcon(os.path.join(os.path.dirname(__file__), "icon.svg"))

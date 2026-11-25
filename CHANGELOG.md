@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0 — 2026-11-25
+* **Interfaccia bilingue**: italiano (predefinito) e inglese, con pulsante a bandiera ben visibile in pagina web (locale e online), help e plugin QGIS (voce di menu Raster → HazardFill). Messaggi, immagini esportate ed etichette di legenda degli stili seguono la lingua scelta; scelta ricordata.
+* Help completo in inglese e in italiano.
+
 ## 1.2.1 — 2026-11-25
 * **Nuovi dati di prova: Spona_test** (raster 1 m e 186 edifici, in zip, GeoPackage e shapefile) al posto di Figna_test. Sono dati di prova, non mappature ufficiali né valutazioni reali (caso derivato da idrogrammi non «calati» nel contesto locale). Un edificio è tolto di proposito per mostrare l'integrazione con OpenStreetMap.
 * Esempio, immagini e documentazione aggiornati; pulsante «Carica l'esempio» della versione online di nuovo attivo.

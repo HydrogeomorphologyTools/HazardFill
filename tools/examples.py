@@ -15,6 +15,40 @@ COL = {0: "#ffffff", 1: "#ffeb3b", 2: "#ff8c00", 3: "#d62828"}
 DARK = {1: 0.72, 2: 0.55, 3: 0.38}
 STEP_LAB = {1: "edifici", 2: "zone interne", 3: "buffer"}
 
+LANG = "it"
+EN = {
+    "Prima": "Before",
+    "edificio (bordo azzurro): solo la 1ª colonna ha pericolo 2": "building (blue outline): only its 1st column has hazard 2",
+    "Dopo, tolleranza 0 m": "After, tolerance 0 m",
+    "tutto l'edificio prende il massimo che lo tocca: 2": "the whole building takes the maximum touching it: 2",
+    "Dopo, tolleranza 1 m": "After, tolerance 1 m",
+    "entra anche la cella a pericolo 3 entro 1 m: tutto 3": "the hazard-3 cell within 1 m is included: all 3",
+    "due zone a 0 interne: 4 m² e 12 m² (pixel da 1 m)": "two interior zones at 0: 4 m² and 12 m² (1 m pixels)",
+    "Area ≤ 5 m²": "Area ≤ 5 m²",
+    "si chiude solo la piccola": "only the small one is closed",
+    "Chiudi TUTTE": "Close ALL",
+    "si chiudono entrambe": "both are closed",
+    "la zona a 0 è collegata all'esterno da un passaggio di 1 cella": "the zone at 0 is linked to the outside by a 1-cell passage",
+    "Varco 0 m": "Gap 0 m",
+    "zona esterna: non si chiude": "exterior zone: not closed",
+    "Varco 3 m": "Gap 3 m",
+    "passaggio più stretto del varco: zona interna, si chiude": "passage narrower than the gap: interior zone, closed",
+    "contorno: 3 sopra, 1 a sinistra, 2 a destra e sotto": "boundary: 3 above, 1 on the left, 2 on the right and below",
+    "massimo del contorno": "boundary maximum",
+    "più frequente del contorno": "most frequent boundary value",
+    "più vicino (ogni cella prende il suo)": "nearest (each cell takes its own)",
+    "il pericolo termina sulla classe 0": "the hazard ends on class 0",
+    "Buffer 1 m": "Buffer 1 m",
+    "1 cella (1 m) con valore −1 grado (minimo 1)": "1 cell (1 m) with value −1 degree (minimum 1)",
+    "Buffer 2 m": "Buffer 2 m",
+    "2 celle (2 m), stesso valore (nessun altro grado)": "2 cells (2 m), same value (no further degree)",
+}
+
+
+def _t(s):
+    return EN.get(s, s) if LANG == "en" else s
+
+
 
 def _dark(hexcol, f):
     r, g, b = (int(hexcol[i:i + 2], 16) for i in (1, 3, 5))
@@ -39,7 +73,7 @@ def grid(arr, bid=None, code=None, title="", note=""):
             cells.append('<td style="%s">%s</td>' % (";".join(st), txt if v or (code is not None and code[y, x]) else ""))
         rows.append("<tr>%s</tr>" % "".join(cells))
     return '<figure class="ex"><table class="g">%s</table><figcaption><b>%s</b>%s</figcaption></figure>' % (
-        "".join(rows), title, ("<br>" + note) if note else "")
+        "".join(rows), _t(title), ("<br>" + _t(note)) if note else "")
 
 
 def row(*figs):
@@ -124,7 +158,9 @@ def ex_buffer():
             (h, o1, o2))
 
 
-def ex_all():
+def ex_all(lang="it"):
+    global LANG
+    LANG = lang
     return dict(buildings=ex_buildings()[0], holes=ex_holes()[0], gap=ex_gap()[0], fillmode=ex_fillmode()[0], buffer=ex_buffer()[0])
 
 

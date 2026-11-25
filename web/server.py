@@ -288,18 +288,18 @@ def receive_upload(handler, q):
     ext = os.path.splitext(name)[1].lower()
     if kind == "raster":
         if ext not in (".tif", ".tiff"):
-            return dict(error="Il raster deve essere un GeoTIFF (.tif)")
+            return dict(error="The raster must be a GeoTIFF (.tif)")
         if n > MAX_RASTER:
-            return dict(error="File troppo grande (massimo %d GB)" % (MAX_RASTER // 1024 ** 3))
+            return dict(error="File too large (maximum %d GB)" % (MAX_RASTER // 1024 ** 3))
         dest_dir = os.path.join(WORKSPACE, area)
     elif kind == "buildings":
         if ext not in (".zip", ".gpkg", ".geojson", ".json"):
-            return dict(error="Edifici: shapefile compresso (.zip), GeoPackage (.gpkg) o GeoJSON")
+            return dict(error="Buildings: zipped shapefile (.zip), GeoPackage (.gpkg) or GeoJSON")
         if n > MAX_BUILDINGS:
-            return dict(error="File troppo grande (massimo %d MB)" % (MAX_BUILDINGS // 1024 ** 2))
+            return dict(error="File too large (maximum %d MB)" % (MAX_BUILDINGS // 1024 ** 2))
         dest_dir = os.path.join(WORKSPACE, area, "Edifici")
     else:
-        return dict(error="tipo di caricamento non valido")
+        return dict(error="invalid upload type")
     os.makedirs(dest_dir, exist_ok=True)
     tmp = os.path.join(dest_dir, "_in_arrivo" + ext)
     left = n
@@ -312,23 +312,23 @@ def receive_upload(handler, q):
             left -= len(chunk)
     if left:
         os.remove(tmp)
-        return dict(error="caricamento interrotto")
+        return dict(error="upload interrupted")
     warn = []
     try:
         if kind == "raster":
             with rasterio.open(tmp) as r:
                 if r.crs is None or not r.crs.is_projected:
-                    raise ValueError("il raster deve essere in un sistema di coordinate proiettato in metri (non in gradi): riproiettalo prima del caricamento")
+                    raise ValueError("the raster must be in a projected coordinate system in metres (not degrees): reproject it before loading")
                 if r.transform.b != 0 or r.transform.d != 0:
-                    raise ValueError("il raster deve avere la griglia con il nord in alto, senza rotazione")
+                    raise ValueError("the raster must have a north-up grid, without rotation")
                 if r.count > 1:
-                    warn.append("il raster ha %d bande: si usa la prima" % r.count)
+                    warn.append("the raster has %d bands: the first one is used" % r.count)
                 a = r.read(1)
                 vals = np.unique(a[np.isfinite(a)])
                 info = dict(width=r.width, height=r.height, res=round(r.res[0], 4), crs=str(r.crs.to_string()))
             extra = [float(v) for v in vals if v >= 0.5 and (abs(v - round(v)) > 1e-6 or v > 3)]
             if extra:
-                warn.append("valori diversi da 0-3 (es. %s): i non interi sono arrotondati e i valori >3 portati a 3; se la mappa usa altri codici riclassificala prima" % ", ".join("%g" % v for v in extra[:6]))
+                warn.append("values other than 0-3 (e.g. %s): non-integers are rounded and values >3 are set to 3; if the map uses other codes, reclassify it first" % ", ".join("%g" % v for v in extra[:6]))
             dest = os.path.join(dest_dir, name if ext in (".tif", ".tiff") else name + ".tif")
             if os.path.exists(dest):
                 os.remove(dest)
@@ -347,7 +347,7 @@ def receive_upload(handler, q):
                 os.remove(tmp)
                 shp = glob.glob(os.path.join(dest_dir, "*.shp"))
                 if not shp:
-                    raise ValueError("nello zip non c'e' nessuno shapefile (.shp)")
+                    raise ValueError("no shapefile (.shp) found in the zip")
                 path = shp[0]
             else:
                 for old in glob.glob(os.path.join(dest_dir, "*")):
@@ -357,13 +357,13 @@ def receive_upload(handler, q):
                 os.replace(tmp, path)
             g = gpd.read_file(path)
             if g.crs is None:
-                raise ValueError("gli edifici non hanno un sistema di coordinate (file .prj mancante?)")
+                raise ValueError("the buildings have no coordinate system (missing .prj file?)")
             gt = g.geometry.geom_type.value_counts()
             if not any("Polygon" in t for t in gt.index):
-                raise ValueError("il layer degli edifici deve contenere poligoni")
+                raise ValueError("the buildings layer must contain polygons")
             info = dict(features=int(len(g)), crs=str(g.crs.to_string()))
             if (~g.geometry.is_valid).any():
-                warn.append("%d edifici con geometria non valida: vengono rasterizzati comunque" % int((~g.geometry.is_valid).sum()))
+                warn.append("%d buildings with invalid geometry: they are rasterized anyway" % int((~g.geometry.is_valid).sum()))
     except Exception as e:
         for f in glob.glob(os.path.join(dest_dir, "_in_arrivo*")):
             os.remove(f)
@@ -392,7 +392,7 @@ class H(BaseHTTPRequestHandler):
         try:
             if u.path == "/api/upload_data":
                 if not UPLOAD or WORKSPACE is None:
-                    return self._send(403, json.dumps(dict(error="caricamento disattivato")).encode(), "application/json")
+                    return self._send(403, json.dumps(dict(error="upload disabled")).encode(), "application/json")
                 q = {k: v[0] for k, v in parse_qs(u.query).items()}
                 return self._send(200, json.dumps(receive_upload(self, q)).encode(), "application/json")
             self._send(404, b"not found", "text/plain")
@@ -421,6 +421,9 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, body, "image/jpeg")
             if u.path == "/api/version":
                 return self._send(200, json.dumps(dict(version=core.__version__, upload=bool(UPLOAD and WORKSPACE))).encode(), "application/json")
+            if u.path == "/i18n.js":
+                with open(os.path.join(HERE, "i18n.js"), "rb") as f:
+                    return self._send(200, f.read(), "application/javascript; charset=utf-8")
             if u.path == "/logo.svg":
                 with open(os.path.join(os.path.dirname(core.__file__), "icon.svg"), "rb") as f:
                     return self._send(200, f.read(), "image/svg+xml")
@@ -431,7 +434,7 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, INFO(), "application/json")
             if u.path == "/api/style":
                 clean = q.get("clean") == "1"
-                body = make_qml(clean).encode("utf-8")
+                body = make_qml(clean, q.get("lang")).encode("utf-8")
                 name = q.get("name", "stile") + ("_elaborata_pulita.qml" if clean else "_elaborata_codici.qml")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/xml")
@@ -445,6 +448,7 @@ class H(BaseHTTPRequestHandler):
                          holes=q.get("holes") == "1", area=float(q.get("area", 10)), hmode=q.get("hmode", "major"),
                          gap=int(q.get("gap", 0)), osm=int(q.get("osm", 0)),
                          buf=q.get("buf") == "1", bufm=float(q.get("bufm", 1)))
+                core.LANG = "en" if q.get("lang") == "en" else "it"
                 body = export_vector(q["case"], q["layer"], p)
                 name = os.path.splitext(os.path.basename(q["layer"]))[0] + "_elaborata_vettoriale.gpkg"
                 self.send_response(200)

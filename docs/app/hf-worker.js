@@ -8,9 +8,9 @@ let ready = null;
 function init() {
   if (ready) return ready;
   ready = (async () => {
-    postMessage({ type: 'status', msg: 'carico Python nel browser (la prima volta può richiedere qualche decina di secondi)…' });
+    postMessage({ type: 'status', key: 'w1' });
     py = await loadPyodide();
-    postMessage({ type: 'status', msg: 'carico numpy e scipy…' });
+    postMessage({ type: 'status', key: 'w2' });
     await py.loadPackage(['numpy', 'scipy']);
     const core = await (await fetch('hazardfill/core.py')).text();
     py.FS.writeFile('/home/pyodide/core.py', core);
@@ -41,8 +41,8 @@ def run(h, bu, bo, w, hh, res, params_json, key, osm):
     out, code, st = core.process(H, bid, res, p, cache=_cache, key=key)
     return out.astype(np.uint8).tobytes(), code.astype(np.uint8).tobytes(), json.dumps(st)
 
-def qml(clean):
-    return core.make_qml(bool(clean))
+def qml(clean, lang="it"):
+    return core.make_qml(bool(clean), lang)
 
 def version():
     return core.__version__
@@ -65,7 +65,7 @@ onmessage = async (e) => {
       const code = new Uint8Array(arr[1]);
       postMessage({ type: 'result', id: m.id, out, code, stats: JSON.parse(arr[2]), ms: performance.now() - t0 }, [out.buffer, code.buffer]);
     } else if (m.type === 'qml') {
-      postMessage({ type: 'qml', id: m.id, text: py.globals.get('qml')(m.clean) });
+      postMessage({ type: 'qml', id: m.id, text: py.globals.get('qml')(m.clean, m.lang) });
     } else if (m.type === 'init') {
       /* solo inizializzazione */
     }

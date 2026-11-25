@@ -12,10 +12,12 @@ from qgis.PyQt.QtCore import QUrl
 from qgis.PyQt.QtGui import QDesktopServices, QIcon
 from qgis.PyQt.QtWidgets import QAction
 
+from .i18n import lang, set_lang, tr
 from .provider import HazardFillProvider
 
 HERE = os.path.dirname(__file__)
 MANUAL = os.path.join(HERE, "help", "help_utilizzo.html")
+FLAGS = {"it": os.path.join(HERE, "flag_it.svg"), "en": os.path.join(HERE, "flag_en.svg")}
 
 # basi cartografiche (come nella pagina web); (nome, url XYZ, zmax, visibile)
 BASEMAPS = [
@@ -31,7 +33,7 @@ def add_basemaps():
     """Aggiunge le basi XYZ in un gruppo in fondo al pannello Layer. Ritorna il numero di layer aggiunti."""
     prj = QgsProject.instance()
     root = prj.layerTreeRoot()
-    grp = root.findGroup("Basi HazardFill") or root.addGroup("Basi HazardFill")
+    grp = root.findGroup("HazardFill basemaps") or root.findGroup("Basi HazardFill") or root.addGroup("HazardFill basemaps")
     n = 0
     have = {c.name() for c in grp.children()}
     for name, url, zmax, vis in BASEMAPS:
@@ -73,12 +75,29 @@ class HazardFillPlugin:
 
     def initGui(self):
         self.initProcessing()
-        run = self._act("Elabora mappa di pericolosità…", lambda: self._dlg("hazardfill:fillhazard"))
-        self._act("Apri cartella di dati…", self.open_folder)
-        self._act("Esporta mappa con legenda, nord e scala (PNG)…", lambda: self._dlg("hazardfill:exportmap"))
-        self._act("Aggiungi basi cartografiche (satellite, hillshade, ...)", self.basemaps)
-        self._act("Help – utilizzo", lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(MANUAL)))
+        run = self._act(tr("Process hazard map…"), lambda: self._dlg("hazardfill:fillhazard"))
+        self._act(tr("Open data folder…"), self.open_folder)
+        self._act(tr("Export map with legend, north and scale (PNG)…"), lambda: self._dlg("hazardfill:exportmap"))
+        self._act(tr("Add basemaps (satellite, hillshade, ...)"), self.basemaps)
+        self._act(tr("Help – usage"), self.open_help)
+        other = "it" if lang() == "en" else "en"
+        a = QAction(QIcon(FLAGS[other]), "Italiano" if other == "it" else "English", self.iface.mainWindow())
+        a.triggered.connect(self.toggle_language)
+        self.iface.addPluginToRasterMenu("HazardFill", a)
+        self.actions.append(a)
         self.iface.addToolBarIcon(run)
+
+    def open_help(self):
+        url = QUrl.fromLocalFile(MANUAL)
+        url.setQuery("lang=" + lang())
+        QDesktopServices.openUrl(url)
+
+    def toggle_language(self):
+        """Inglese <-> italiano: menu, algoritmi e help seguono la scelta (salvata nelle impostazioni di QGIS)."""
+        set_lang("it" if lang() == "en" else "en")
+        self.unload()
+        self.initGui()
+        self.iface.messageBar().pushInfo("HazardFill", "Language: English" if lang() == "en" else "Lingua: italiano")
 
     def _dlg(self, alg):
         import processing
@@ -111,7 +130,7 @@ class HazardFillPlugin:
 
     def basemaps(self):
         n = add_basemaps()
-        self.iface.messageBar().pushInfo("HazardFill", "Basi aggiunte: %d (gruppo 'Basi HazardFill'; ne è visibile una sola)." % n)
+        self.iface.messageBar().pushInfo("HazardFill", tr("Basemaps added: %d (group 'HazardFill basemaps'; only one is visible).") % n)
 
     def unload(self):
         for a in self.actions:

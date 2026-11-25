@@ -21,12 +21,14 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsProcessingLayerPostProcessorInterface, QgsProcessingOutputRasterLayer, QgsRasterLayer
 
 from . import core, vector_export
+from .i18n import lang, tr
 
 HERE = os.path.dirname(__file__)
 HMODES = ["max", "major", "near"]
 
 
 def _qml_file(clean):
+    core.LANG = lang()
     """File .qml con la tavolozza dei codici (nella cartella temporanea)."""
     path = os.path.join(tempfile.gettempdir(), "hazardfill_style_%s.qml" % ("clean" if clean else "codes"))
     with open(path, "w", encoding="utf-8") as f:
@@ -37,13 +39,13 @@ def _qml_file(clean):
 def read_raster(layer):
     ds = gdal.Open(layer.source())
     if ds is None:
-        raise QgsProcessingException("Impossibile aprire il raster %s" % layer.source())
+        raise QgsProcessingException(tr("Cannot open the raster %s") % layer.source())
     gt = ds.GetGeoTransform()
     if abs(gt[2]) > 1e-12 or abs(gt[4]) > 1e-12 or gt[5] > 0:
-        raise QgsProcessingException("Il raster deve avere griglia regolare con nord in alto (senza rotazione).")
+        raise QgsProcessingException(tr("The raster must have a regular north-up grid (no rotation)."))
     crs = layer.crs()
     if not crs.isValid() or crs.isGeographic():
-        raise QgsProcessingException("Il raster deve essere in un CRS proiettato in metri (non gradi).")
+        raise QgsProcessingException(tr("The raster must be in a projected CRS in metres (not degrees)."))
     arr = ds.GetRasterBand(1).ReadAsArray()
     return core.normalize_hazard(arr), gt, crs
 
@@ -119,10 +121,10 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
         return "fillhazard"
 
     def displayName(self):
-        return "Chiusura buchi nella mappa di pericolosità"
+        return tr("Fill holes in the hazard map")
 
     def group(self):
-        return "Mappe di pericolosità"
+        return tr("Hazard maps")
 
     def groupId(self):
         return "hazard"
@@ -137,49 +139,25 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
         return "file:///" + os.path.join(HERE, "help", "help_utilizzo.html").replace("\\", "/")
 
     def shortHelpString(self):
-        return (
-            "<p><i>Ausilio di pre-screening per i gestori del territorio nella fase di valutazione finale della mappatura del pericolo: "
-            "non produce mappe di pericolosità e non sostituisce la valutazione di esperti.</i></p>"
-            "<p>Corregge le mappe di pericolosità a classi (<b>0</b> nessun pericolo/nodata, <b>1</b> basso, "
-            "<b>2</b> medio, <b>3</b> alto) eliminando le isole di assenza di pericolo non realistiche. "
-            "I valori predefiniti sono <i>esempi di partenza</i>, non parametri definitivi.</p>"
-            "<p><b>Ingressi</b>: raster a una banda in CRS proiettato (metri) con <b>solo</b> queste classi "
-            "(nodata e negativi = 0); edifici poligonali in qualsiasi CRS (opzionali se si usa OpenStreetMap).</p>"
-            "<h4>I passi, con esempi (pixel da 1 m)</h4>"
-            "<p><b>0 Edifici.</b> Ogni edificio prende il valore <i>massimo</i> che lo tocca o che è entro la tolleranza (m) dal bordo. "
-            "Es.: edificio 3×3 con solo la prima colonna a pericolo 2 &rarr; con tolleranza 0 m tutto l'edificio vale 2; "
-            "se accanto c'è una cella a 3 e la tolleranza è 1 m &rarr; tutto 3. Le distanze in metri sono convertite in pixel con la risoluzione del raster.</p>"
-            "<p><b>1 Zone interne.</b> Riempie le zone a 0 circondate da pericolo (non collegate al bordo del raster) con area &le; A m². "
-            "Es.: due buchi di 4 m² e 12 m² &rarr; con A=5 si chiude solo il primo; con «Chiudi TUTTE» entrambi.</p>"
-            "<p><b>Varco sigillabile</b> (m): con 0 conta solo l'interno completamente chiuso; con 3 m una zona collegata all'esterno "
-            "da un passaggio più stretto di 3 m è considerata interna (es. argine con una sola apertura).</p>"
-            "<p><b>Valore di riempimento</b>: più frequente del contorno (predefinito), massimo (prudente), oppure più vicino. "
-            "Es.: contorno con 3 sopra, 1 a sinistra e 2 altrove &rarr; più frequente = 2, massimo = 3, più vicino = misto 1/2/3.</p>"
-            "<p><b>2 Buffer.</b> Fascia di larghezza data (m) sulla classe 0 adiacente a pixel validi con valore del più vicino &minus;1 grado (min 1). "
-            "Es.: bordo a 3 &rarr; buffer 2; bordo a 2 &rarr; 1; bordo a 1 &rarr; 1. Non sovrascrive pixel validi.</p>"
-            "<h4>Uscite</h4>"
-            "<p>Raster con codici: decine = passo (1 edifici, 2 zone interne, 3 buffer), unità = livello assegnato "
-            "(es. <b>23</b> = pericolo alto assegnato da zona interna); e, se richiesto, raster pulito 0-3. Ciascuno con stile .qml.</p>"
-            "<p>Per l'immagine con legenda, nord e scala usa l'algoritmo «Esporta mappa». "
-            "Help completo con figure: menu Raster &rarr; HazardFill &rarr; Help &ndash; utilizzo.</p>")
+        return tr("help_fill")
 
     def initAlgorithm(self, config=None):
-        self.addParameter(QgsProcessingParameterRasterLayer(self.INPUT, "Mappa di pericolosità (classi 0-3)"))
-        self.addParameter(QgsProcessingParameterFeatureSource(self.BUILDINGS, "Edifici (poligoni)", [QgsProcessing.TypeVectorPolygon], optional=True))
-        self.addParameter(QgsProcessingParameterEnum(self.OSM, "Sorgente edifici", ["solo edifici forniti", "forniti + integra da OpenStreetMap", "solo OpenStreetMap"], defaultValue=0))
-        self.addParameter(QgsProcessingParameterBoolean(self.BLD, "0. Applica criterio edifici", True))
-        self.addParameter(QgsProcessingParameterNumber(self.BPX, "   Edifici: tolleranza dal bordo (m)", QgsProcessingParameterNumber.Double, 0.0, minValue=0, maxValue=100))
-        self.addParameter(QgsProcessingParameterBoolean(self.HOLES, "1. Chiudi zone interne", True))
-        self.addParameter(QgsProcessingParameterNumber(self.AREA, "   Zone interne: area massima da chiudere (m²)", QgsProcessingParameterNumber.Double, 10.0, minValue=0, maxValue=100000))
-        self.addParameter(QgsProcessingParameterBoolean(self.ALL, "   Chiudi TUTTE le zone interne (ignora l'area)", False))
-        self.addParameter(QgsProcessingParameterNumber(self.GAP, "   Varco sigillabile (m, 0 = solo zone chiuse)", QgsProcessingParameterNumber.Double, 0.0, minValue=0))
-        self.addParameter(QgsProcessingParameterEnum(self.HMODE, "   Valore di riempimento", ["massimo del contorno", "più frequente del contorno (maggioranza)", "più vicino"], defaultValue=1))
-        self.addParameter(QgsProcessingParameterBoolean(self.BUF, "2. Buffer graduato su classe 0", True))
-        self.addParameter(QgsProcessingParameterNumber(self.BUFPX, "   Buffer: larghezza (m)", QgsProcessingParameterNumber.Double, 1.0, minValue=0.1, maxValue=1000))
-        self.addParameter(QgsProcessingParameterRasterDestination(self.OUT, "Raster elaborato (con codici di modifica)"))
-        self.addParameter(QgsProcessingParameterBoolean(self.CREATE_CLEAN, "Crea anche il raster pulito (solo classi 0-3, senza codici)", False))
-        self.addOutput(QgsProcessingOutputRasterLayer(self.OUT_CLEAN, "Raster pulito (solo 0-3)"))
-        self.addParameter(QgsProcessingParameterFileDestination(self.OUT_VECTOR, "Vettoriale GeoPackage con codici (4 livelli)", "GeoPackage (*.gpkg)", optional=True, createByDefault=False))
+        self.addParameter(QgsProcessingParameterRasterLayer(self.INPUT, tr("Hazard map (classes 0-3)")))
+        self.addParameter(QgsProcessingParameterFeatureSource(self.BUILDINGS, tr("Buildings (polygons)"), [QgsProcessing.TypeVectorPolygon], optional=True))
+        self.addParameter(QgsProcessingParameterEnum(self.OSM, tr("Buildings source"), [tr("provided buildings only"), tr("provided + add from OpenStreetMap"), tr("OpenStreetMap only")], defaultValue=0))
+        self.addParameter(QgsProcessingParameterBoolean(self.BLD, tr("0. Apply buildings criterion"), True))
+        self.addParameter(QgsProcessingParameterNumber(self.BPX, tr("   Buildings: tolerance from the edge (m)"), QgsProcessingParameterNumber.Double, 0.0, minValue=0, maxValue=100))
+        self.addParameter(QgsProcessingParameterBoolean(self.HOLES, tr("1. Close interior zones"), True))
+        self.addParameter(QgsProcessingParameterNumber(self.AREA, tr("   Interior zones: maximum area to close (m²)"), QgsProcessingParameterNumber.Double, 10.0, minValue=0, maxValue=100000))
+        self.addParameter(QgsProcessingParameterBoolean(self.ALL, tr("   Close ALL interior zones (ignore the area)"), False))
+        self.addParameter(QgsProcessingParameterNumber(self.GAP, tr("   Sealable gap (m, 0 = closed zones only)"), QgsProcessingParameterNumber.Double, 0.0, minValue=0))
+        self.addParameter(QgsProcessingParameterEnum(self.HMODE, tr("   Fill value"), [tr("boundary maximum"), tr("most frequent boundary value (majority)"), tr("nearest")], defaultValue=1))
+        self.addParameter(QgsProcessingParameterBoolean(self.BUF, tr("2. Graded buffer on class 0"), True))
+        self.addParameter(QgsProcessingParameterNumber(self.BUFPX, tr("   Buffer: width (m)"), QgsProcessingParameterNumber.Double, 1.0, minValue=0.1, maxValue=1000))
+        self.addParameter(QgsProcessingParameterRasterDestination(self.OUT, tr("Processed raster (with modification codes)")))
+        self.addParameter(QgsProcessingParameterBoolean(self.CREATE_CLEAN, tr("Also create the clean raster (classes 0-3 only, no codes)"), False))
+        self.addOutput(QgsProcessingOutputRasterLayer(self.OUT_CLEAN, tr("Clean raster (0-3 only)")))
+        self.addParameter(QgsProcessingParameterFileDestination(self.OUT_VECTOR, tr("GeoPackage vector with codes (4 layers)"), "GeoPackage (*.gpkg)", optional=True, createByDefault=False))
 
     # ------------------------------------------------------------------
     def processAlgorithm(self, parameters, context, feedback):
@@ -202,7 +180,7 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
         make_clean = self.parameterAsBool(parameters, self.CREATE_CLEAN, context)
         vec_path = self.parameterAsFileOutput(parameters, self.OUT_VECTOR, context) if self.OUT_VECTOR in parameters and parameters[self.OUT_VECTOR] else None
 
-        feedback.pushInfo("Lettura raster...")
+        feedback.pushInfo(tr("Reading raster..."))
         h, gt, crs = read_raster(layer)
         res = abs(gt[1])
         p["gap"] = int(round(self.parameterAsDouble(parameters, self.GAP, context) / res / 2))
@@ -219,9 +197,9 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
             if osm != 2:
                 if src is None:
                     if osm == 0:
-                        raise QgsProcessingException("Nessun vettore di edifici indicato: scegli un vettore oppure una sorgente OpenStreetMap.")
+                        raise QgsProcessingException(tr("No buildings vector given: choose a vector or an OpenStreetMap source."))
                 else:
-                    feedback.pushInfo("Rasterizzazione edifici forniti...")
+                    feedback.pushInfo(tr("Rasterizing provided buildings..."))
                     xf = QgsCoordinateTransform(crs, src.sourceCrs(), context.transformContext())
                     req = QgsFeatureRequest().setFilterRect(xf.transformBoundingBox(rect))
                     xf2 = QgsCoordinateTransform(src.sourceCrs(), crs, context.transformContext())
@@ -233,19 +211,19 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
                         g.transform(xf2)
                         wl.append(g.asWkt())
                     user = rasterize_polys(wl, shape, gt, wkt)
-                    feedback.pushInfo("  %d edifici forniti" % len(wl))
+                    feedback.pushInfo(tr("  %d buildings provided") % len(wl))
             bid = user
             if osm:
-                feedback.pushInfo("Download edifici da OpenStreetMap...")
+                feedback.pushInfo(tr("Downloading buildings from OpenStreetMap..."))
                 to_ll = QgsCoordinateTransform(crs, QgsCoordinateReferenceSystem("EPSG:4326"), context.transformContext())
                 bb = to_ll.transformBoundingBox(rect)
                 cache = os.path.join(tempfile.gettempdir(), "hazardfill_osm_cache")
-                feedback.pushInfo("(puoi annullare in qualsiasi momento; se il servizio e' lento puoi fornire gli edifici come shapefile/GeoPackage)")
+                feedback.pushInfo(tr("(you can cancel at any time; if the service is slow you can provide the buildings as shapefile/GeoPackage)"))
                 try:
                     rings = core.osm_buildings(bb.yMinimum(), bb.xMinimum(), bb.yMaximum(), bb.xMaximum(), cache_dir=cache, log=feedback.pushInfo,
                                                is_canceled=feedback.isCanceled)
                 except core.Cancelled:
-                    feedback.pushInfo("Operazione annullata.")
+                    feedback.pushInfo(tr("Operation cancelled."))
                     return {}
                 except RuntimeError as e:
                     raise QgsProcessingException(str(e))
@@ -257,37 +235,37 @@ class FillHazardAlgorithm(QgsProcessingAlgorithm):
                     wl.append(g.asWkt())
                 bo = rasterize_polys(wl, shape, gt, wkt)
                 bid, nadd = core.merge_building_ids(user, bo)
-                feedback.pushInfo("  %d edifici OSM nell'area, %d aggiunti" % (len(wl), nadd))
+                feedback.pushInfo(tr("  %d OSM buildings in the area, %d added") % (len(wl), nadd))
             if feedback.isCanceled():
                 return {}
 
-        feedback.pushInfo("Elaborazione (%d x %d pixel, %.2f m)..." % (shape[1], shape[0], res))
+        feedback.pushInfo(tr("Processing (%d x %d pixels, %.2f m)...") % (shape[1], shape[0], res))
         out, code, st = core.process(h, bid, res, p)
         if "bld_total" in st:
-            feedback.pushInfo("Edifici modificati: %d / %d" % (st["bld_changed"], st["bld_total"]))
-        feedback.pushInfo("Pixel modificati per passo (edifici / zone interne / buffer): %s" % st["mod_by_step"])
-        feedback.pushInfo("Pixel per classe 0/1/2/3 prima: %s  dopo: %s" % (st["orig"], st["new"]))
+            feedback.pushInfo(tr("Buildings modified: %d / %d") % (st["bld_changed"], st["bld_total"]))
+        feedback.pushInfo(tr("Modified pixels per step (buildings / interior zones / buffer): %s") % st["mod_by_step"])
+        feedback.pushInfo(tr("Pixels per class 0/1/2/3 before: %s  after: %s") % (st["orig"], st["new"]))
 
         params = json.dumps(dict(p, osm=osm, gap_m=self.parameterAsDouble(parameters, self.GAP, context)))
         base = dict(source=layer.source(), params=params, software="HazardFill %s" % core.__version__)
         write_tif(out_path, core.with_codes(out, code), gt, crs, dict(base, variant="codes",
-                  codes="0=nodata/zero;1-3=pericolo originale;1x=modificato da edifici;2x=da zone interne;3x=da buffer (x=livello 1-3)"))
+                  codes="0=nodata/zero;1-3=original hazard;1x=modified by buildings;2x=by interior zones;3x=by buffer (x=level 1-3)"))
         res_d = {self.OUT: out_path}
         if context.willLoadLayerOnCompletion(out_path):                     # stile a classi singole sul raster caricato
             context.layerToLoadOnCompletionDetails(out_path).setPostProcessor(StylePostProcessor(_qml_file(False)))
         if make_clean:
-            clean_path = os.path.splitext(out_path)[0] + "_pulito.tif"
-            write_tif(clean_path, out, gt, crs, dict(base, variant="clean", codes="0=nodata/zero;1=basso;2=medio;3=alto"))
+            clean_path = os.path.splitext(out_path)[0] + tr("_clean.tif")
+            write_tif(clean_path, out, gt, crs, dict(base, variant="clean", codes="0=nodata/zero;1=low;2=medium;3=high"))
             res_d[self.OUT_CLEAN] = clean_path
-            det = QgsProcessingContext.LayerDetails("Raster pulito (0-3)", context.project(), self.OUT_CLEAN)
+            det = QgsProcessingContext.LayerDetails(tr("Clean raster (0-3)"), context.project(), self.OUT_CLEAN)
             det.setPostProcessor(StylePostProcessor(_qml_file(True)))
             context.addLayerToLoadOnCompletion(clean_path, det)
         if vec_path:
-            feedback.pushInfo("Poligonizzazione (GeoPackage con 4 livelli)...")
+            feedback.pushInfo(tr("Polygonizing (GeoPackage with 4 layers)..."))
             info = vector_export.write_gpkg(vec_path, h, out, core.with_codes(out, code), gt, wkt)
-            feedback.pushInfo("Livelli scritti: %s" % ", ".join("%s (%d poligoni)" % kv for kv in info.items()))
+            feedback.pushInfo(tr("Layers written: %s") % ", ".join(tr("%s (%d polygons)") % kv for kv in info.items()))
             for name in vector_export_layers():
                 context.addLayerToLoadOnCompletion("%s|layername=%s" % (vec_path, name),
-                                                   QgsProcessingContext.LayerDetails("Vettoriale - " + name, context.project(), self.OUT_VECTOR))
+                                                   QgsProcessingContext.LayerDetails(tr("Vector - ") + name, context.project(), self.OUT_VECTOR))
             res_d[self.OUT_VECTOR] = vec_path
         return res_d

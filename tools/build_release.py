@@ -47,7 +47,7 @@ with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as z:
 zw = os.path.join(dist, "HazardFill_web_%s.zip" % V)
 with zipfile.ZipFile(zw, "w", zipfile.ZIP_DEFLATED) as z:
     web = os.path.join(root, "web")
-    for f in ("server.py", "index.html", "requirements.txt", "avvia_hazardfill_web.bat", "avvia_hazardfill_web.sh"):
+    for f in ("server.py", "index.html", "i18n.js", "requirements.txt", "avvia_hazardfill_web.bat", "avvia_hazardfill_web.sh"):
         z.write(os.path.join(web, f), os.path.join("HazardFill_web", f))
     z.write(os.path.join(web, "dati", "LEGGIMI.txt"), os.path.join("HazardFill_web", "dati", "LEGGIMI.txt"))
     for f in ("core.py", "icon.svg"):

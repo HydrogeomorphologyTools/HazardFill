@@ -197,9 +197,9 @@ QgsProject.instance().addMapLayers([rl, vl])
 el = QgsRasterLayer(out, "elaborata")
 QgsProject.instance().addMapLayer(el)
 png1 = processing.run("hazardfill:exportmap", dict(HAZARD=el, LAYERS=[el, vl], TITLE="Esempio", WIDTH_MM=200, DPI=100, OUTPUT=os.path.join(tmp, "mappa.png")))["OUTPUT"]
-check("PNG con riempimenti (nome con 'riempimenti')", os.path.exists(png1) and "riempimenti" in os.path.basename(png1), os.path.basename(png1))
+check("PNG with fills (name with 'fills')", os.path.exists(png1) and "riempimenti" in os.path.basename(png1), os.path.basename(png1))
 png2 = processing.run("hazardfill:exportmap", dict(HAZARD=rl, LAYERS=[rl, vl], WIDTH_MM=200, DPI=100, OUTPUT=os.path.join(tmp, "mappa_orig.png")))["OUTPUT"]
-check("PNG originale (senza 'riempimenti')", os.path.exists(png2) and "riempimenti" not in os.path.basename(png2))
+check("PNG original (without 'fills')", os.path.exists(png2) and "riempimenti" not in os.path.basename(png2))
 
 print("\nTUTTO OK" if all(results) else "\nERRORI: %d su %d" % (results.count(False), len(results)))
 sys.stdout.flush()

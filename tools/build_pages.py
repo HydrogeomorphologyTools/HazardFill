@@ -18,11 +18,11 @@ APP = os.path.join(ROOT, "docs", "app")
 os.makedirs(os.path.join(APP, "hazardfill"), exist_ok=True)
 os.makedirs(os.path.join(APP, "example"), exist_ok=True)
 
-NOTE = ('<small style="display:block;margin-top:6px;padding:5px 7px;background:#fff3cd;border-left:3px solid #f5b400;color:#664d03">'
-        '<b>Versione online di prova.</b> Il calcolo avviene nel tuo browser, quindi serve per <b>provare lo strumento con dati non troppo pesanti</b> '
-        '(raster fino a qualche milione di pixel); non è pensata per un uso intensivo o massivo. Per lavorare con regolarità o su dati grandi '
-        'usa il <b>plugin QGIS</b> (la scelta migliore per il singolo utente) o la versione locale. '
-        'Il vettoriale (GeoPackage) è disponibile solo nel plugin e nella versione locale.</small>')
+NOTE = ('<small data-i="pages_note" style="display:block;margin-top:6px;padding:5px 7px;background:#fff3cd;border-left:3px solid #f5b400;color:#664d03">'
+        '<b>Online trial version.</b> The calculation runs in your browser, so it is meant for <b>trying the tool with not-too-heavy data</b> '
+        '(rasters up to a few million pixels); it is not designed for intensive or bulk use. To work regularly or on large data '
+        'use the <b>QGIS plugin</b> (the best choice for a single user) or the local version. '
+        'The vector (GeoPackage) is only available in the plugin and in the local version.</small>')
 
 
 def build_app():
@@ -36,10 +36,12 @@ def build_app():
                               '<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>\n'
                               '<script src="https://cdn.jsdelivr.net/npm/shpjs@4.0.4/dist/shp.min.js"></script>\n'
                               '<script src="backend-browser.js"></script>\n</head>'), 1)
-    marker = "non è una mappatura di pericolosità né sostituisce la valutazione di esperti.</small>"
+    marker = "does not replace expert assessment.</small>"
     assert marker in s
     s = s.replace(marker, marker + NOTE, 1)
-    s = s.replace("<title>HazardFill (HF) – chiusura buchi nelle mappe di pericolosità</title>", "<title>HazardFill (HF) – versione online di prova</title>", 1)
+    s = s.replace("<title>HazardFill (HF) – filling holes in hazard maps</title>", "<title>HazardFill (HF) – online trial version</title>", 1)
+    s = s.replace("HazardFill (HF) – chiusura buchi nelle mappe di pericolosità\";", "HazardFill (HF) – versione online di prova\";", 1)
+    shutil.copy(os.path.join(ROOT, "web", "i18n.js"), os.path.join(APP, "i18n.js"))
     open(os.path.join(APP, "index.html"), "w", encoding="utf-8").write(s)
     shutil.copy(os.path.join(ROOT, "plugin", "hazardfill", "core.py"), os.path.join(APP, "hazardfill", "core.py"))
     shutil.copy(os.path.join(ROOT, "plugin", "hazardfill", "icon.svg"), os.path.join(APP, "logo.svg"))

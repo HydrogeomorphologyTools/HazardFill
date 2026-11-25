@@ -23,6 +23,7 @@ from qgis.core import (QgsCoordinateTransform, QgsLayoutExporter, QgsLayoutItem,
 from qgis.PyQt.QtCore import Qt, QSizeF
 from qgis.PyQt.QtGui import QColor, QFont, QIcon
 
+from .i18n import lang, tr
 from . import core
 
 HERE = os.path.dirname(__file__)
@@ -45,29 +46,30 @@ def fills_info(variant, p):
     if variant not in ("codes", "clean"):
         return [], "", ""
     steps, where, par = [], [], []
-    fm = lambda v: ("%g" % v).replace(".", ",")
+    dec = "," if lang() == "it" else "."
+    fm = lambda v: ("%g" % v).replace(".", dec)
     if p.get("bld"):
         steps.append(1)
-        where.append("edifici")
-        par.append("edifici %s m%s" % (fm(p.get("bm", p.get("bpx", 0))), {1: " (+OSM)", 2: " (solo OSM)"}.get(int(p.get("osm", 0)), "")))
+        where.append(tr("buildings"))
+        par.append(tr("buildings %s m%s") % (fm(p.get("bm", p.get("bpx", 0))), {1: tr(" (+OSM)"), 2: tr(" (OSM only)")}.get(int(p.get("osm", 0)), "")))
     if p.get("holes"):
         steps.append(2)
-        where.append("zone interne alla mappatura")
-        a = "tutte" if p.get("all_holes") else "≤ %s m²" % fm(p.get("area", 10))
+        where.append(tr("zones inside the mapping"))
+        a = tr("all") if p.get("all_holes") else "≤ %s m²" % fm(p.get("area", 10))
         gm = p.get("gap_m", 0)
-        par.append("zone interne %s%s" % (a, (", varco %s m" % fm(gm)) if gm else ""))
+        par.append(tr("interior zones %s%s") % (a, (tr(", gap %s m") % fm(gm)) if gm else ""))
     if p.get("buf"):
         steps.append(3)
-        par.append("buffer %s m" % fm(p.get("bufm", p.get("bufpx", 1))))
+        par.append(tr("buffer %s m") % fm(p.get("bufm", p.get("bufpx", 1))))
     if not steps:
         return [], "", ""
     if where:
-        sub = "Mappa di pericolosità con riempimenti in corrispondenza di " + " e ".join(where)
+        sub = tr("Hazard map with fills at ") + tr(" and ").join(where)
         if 3 in steps:
-            sub += " e buffer graduato ai margini"
+            sub += tr(" and graded buffer at the edges")
     else:
-        sub = "Mappa di pericolosità con buffer graduato ai margini della mappatura"
-    return steps, sub, "Parametri: " + " · ".join(par)
+        sub = tr("Hazard map with graded buffer at the edges of the mapping")
+    return steps, sub, tr("Parameters: ") + " · ".join(par)
 
 
 def nice_total(extent_w_m, frac=0.22):
@@ -87,10 +89,10 @@ class ExportMapAlgorithm(QgsProcessingAlgorithm):
         return "exportmap"
 
     def displayName(self):
-        return "Esporta mappa con legenda, nord e scala (PNG)"
+        return tr("Export map with legend, north and scale (PNG)")
 
     def group(self):
-        return "Mappe di pericolosità"
+        return tr("Hazard maps")
 
     def groupId(self):
         return "hazard"
@@ -105,27 +107,17 @@ class ExportMapAlgorithm(QgsProcessingAlgorithm):
         return "file:///" + os.path.join(HERE, "help", "help_utilizzo.html").replace("\\", "/")
 
     def shortHelpString(self):
-        return (
-            "<p>Crea un'immagine PNG della mappa con <b>titolo, legenda, freccia del nord e scala</b> (150 dpi). "
-            "Stessa grafica della pagina web.</p>"
-            "<p><b>Raster di pericolo</b>: il raster da descrivere in legenda (quello originale oppure quello elaborato "
-            "da HazardFill). Se è elaborato, titolo e legenda riportano i riempimenti e <i>solo</i> i codici dei passi "
-            "selezionati (11-13 edifici, 21-23 zone interne, 31-33 buffer).</p>"
-            "<p><b>Layer da mostrare</b>: se vuoto, i layer visibili del progetto (basi, hillshade, edifici) nell'ordine del pannello Layer; "
-            "il raster di pericolo viene messo in stile HazardFill.</p>"
-            "<p><b>Estensione</b>: inquadratura (ad esempio 'calcola dal canvas'); vuota = estensione del raster.</p>"
-            "<p>Scala: minimo 100 m, unità scritta una sola volta. Se i riempimenti sono attivi, il nome file contiene "
-            "automaticamente la parola <i>riempimenti</i>.</p>")
+        return tr("help_export")
 
     def initAlgorithm(self, config=None):
-        self.addParameter(QgsProcessingParameterRasterLayer(self.HAZARD, "Raster di pericolo (originale o elaborato)"))
-        self.addParameter(QgsProcessingParameterExtent(self.EXTENT, "Estensione della mappa", optional=True))
-        self.addParameter(QgsProcessingParameterMultipleLayers(self.LAYERS, "Layer da mostrare (vuoto = layer visibili del progetto)", QgsProcessing.TypeMapLayer, optional=True))
-        self.addParameter(QgsProcessingParameterString(self.TITLE, "Titolo (vuoto = nome del raster)", optional=True))
-        self.addParameter(QgsProcessingParameterNumber(self.WIDTH, "Larghezza della mappa (mm)", QgsProcessingParameterNumber.Double, 250, minValue=80, maxValue=1000))
-        self.addParameter(QgsProcessingParameterNumber(self.DPI, "Risoluzione (dpi)", QgsProcessingParameterNumber.Integer, 150, minValue=72, maxValue=600))
-        self.addParameter(QgsProcessingParameterBoolean(self.OUTLINE, "Edifici (layer poligonali): solo contorno azzurro", True))
-        self.addParameter(QgsProcessingParameterFileDestination(self.OUT, "Immagine PNG", "PNG (*.png)"))
+        self.addParameter(QgsProcessingParameterRasterLayer(self.HAZARD, tr("Hazard raster (original or processed)")))
+        self.addParameter(QgsProcessingParameterExtent(self.EXTENT, tr("Map extent"), optional=True))
+        self.addParameter(QgsProcessingParameterMultipleLayers(self.LAYERS, tr("Layers to show (empty = visible project layers)"), QgsProcessing.TypeMapLayer, optional=True))
+        self.addParameter(QgsProcessingParameterString(self.TITLE, tr("Title (empty = raster name)"), optional=True))
+        self.addParameter(QgsProcessingParameterNumber(self.WIDTH, tr("Map width (mm)"), QgsProcessingParameterNumber.Double, 250, minValue=80, maxValue=1000))
+        self.addParameter(QgsProcessingParameterNumber(self.DPI, tr("Resolution (dpi)"), QgsProcessingParameterNumber.Integer, 150, minValue=72, maxValue=600))
+        self.addParameter(QgsProcessingParameterBoolean(self.OUTLINE, tr("Buildings (polygon layers): light-blue outline only"), True))
+        self.addParameter(QgsProcessingParameterFileDestination(self.OUT, tr("PNG image"), "PNG (*.png)"))
 
     # ------------------------------------------------------------------
     def processAlgorithm(self, parameters, context, feedback):
@@ -138,6 +130,7 @@ class ExportMapAlgorithm(QgsProcessingAlgorithm):
         # clone con lo stile HazardFill (palette 0-3 oppure con codici)
         qml = os.path.join(tempfile.gettempdir(), "hazardfill_style_%s.qml" % ("clean" if clean else "codes"))
         with open(qml, "w", encoding="utf-8") as f:
+            core.LANG = lang()
             f.write(core.make_qml(clean))
         hz = QgsRasterLayer(hazard.source(), hazard.name())
         hz.loadNamedStyle(qml)
@@ -242,11 +235,11 @@ class ExportMapAlgorithm(QgsProcessingAlgorithm):
         order = [names.index(v) + shift for v in want if v in names]
         QgsMapLayerLegendUtils.setLegendNodeOrder(node, order)
         node.setCustomProperty("legend/title-style", "hidden")
-        node.setName("Pericolo")
+        node.setName(tr("Hazard"))
         leg.model().refreshLayerLegend(node)
         for c in bld_layers:
             nb = root.addLayer(c)
-            nb.setName("Edifici (contorni)")
+            nb.setName(tr("Buildings (outlines)"))
             nb.setCustomProperty("legend/title-style", "hidden")
         leg.setTitle("")
         for sty, size, bold in ((QgsLegendStyle.Subgroup, 13, True), (QgsLegendStyle.SymbolLabel, 12, False)):
@@ -291,7 +284,7 @@ class ExportMapAlgorithm(QgsProcessingAlgorithm):
 
         foot = QgsLayoutItemLabel(lay)
         others = [l.name() for l in layers if l is not hz]
-        foot.setText(("Layer: " + ", ".join(others) + " · " if others else "") + "HazardFill %s · %s" % (core.__version__, datetime.date.today().strftime("%d/%m/%Y")))
+        foot.setText((tr("Layers: ") + ", ".join(others) + " · " if others else "") + "HazardFill %s · %s" % (core.__version__, datetime.date.today().strftime("%d/%m/%Y" if lang() == "it" else "%Y-%m-%d")))
         foot.setFont(QFont("Arial", 7))
         foot.setFontColor(QColor(90, 90, 90))
         foot.attemptMove(QgsLayoutPoint(2, TOP + Hm + 1, QgsUnitTypes.LayoutMillimeters))
@@ -300,13 +293,13 @@ class ExportMapAlgorithm(QgsProcessingAlgorithm):
 
         out = self.parameterAsFileOutput(parameters, self.OUT, context)
         base, ext_f = os.path.splitext(out)
-        if steps and "riempiment" not in os.path.basename(base).lower():
-            out = base + "_riempimenti" + (ext_f or ".png")
-            feedback.pushInfo("Nome file con i riempimenti: %s" % out)
+        if steps and not any(w in os.path.basename(base).lower() for w in ("riempiment", "fills")):
+            out = base + tr("_fills") + (ext_f or ".png")
+            feedback.pushInfo(tr("File name with fills: %s") % out)
         settings = QgsLayoutExporter.ImageExportSettings()
         settings.dpi = dpi
         res = QgsLayoutExporter(lay).exportToImage(out, settings)
         if res != QgsLayoutExporter.Success:
-            raise QgsProcessingException("Esportazione immagine non riuscita (codice %s)." % res)
-        feedback.pushInfo("Immagine scritta: %s (%d dpi)" % (out, dpi))
+            raise QgsProcessingException(tr("Image export failed (code %s).") % res)
+        feedback.pushInfo(tr("Image written: %s (%d dpi)") % (out, dpi))
         return {self.OUT: out}

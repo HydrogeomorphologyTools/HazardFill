@@ -4,14 +4,23 @@
  * Copyright (C) 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta - CNR-GEO (Istituto di Geoscienze). Licenza GNU GPL v2. */
 (function () {
   'use strict';
-  const VERSION = '1.2.1';
+  const VERSION = '1.3.0';
   const $ = (id) => document.getElementById(id);
   const COLORS = { 1: [255, 235, 59], 2: [255, 140, 0], 3: [214, 40, 40] };
   const FF = { 1: 0.72, 2: 0.55, 3: 0.38 };
   const MAX_PX = 60e6;
   const areas = {};                       // nome area -> dati
+  window.HF_IT_EXTRA = {
+    w1: 'carico Python nel browser (la prima volta può richiedere qualche decina di secondi)…', w2: 'carico numpy e scipy…',
+    osm_dl: 'scarico gli edifici da OpenStreetMap: riquadro {0}/{1}…', prep_ras: 'preparo il raster…', exp_fail: 'Esportazione non riuscita: {0}',
+    no_vec: 'Il vettoriale (GeoPackage) è disponibile nel plugin QGIS e nella versione locale della pagina.', reading: 'leggo {0}…', prep_view: 'preparo la visualizzazione…', rast_b: 'rasterizzo gli edifici…',
+    upinfo_web: "GeoTIFF a una banda, in CRS proiettato (metri), con le sole classi 0-3 (nodata = 0). Edifici (facoltativi): shapefile compresso .zip (con .prj) oppure GeoJSON in EPSG:4326. <b>Tutto il calcolo avviene nel tuo browser: i file non vengono inviati a nessun server.</b>",
+    pages_note: '<b>Versione online di prova.</b> Il calcolo avviene nel tuo browser, quindi serve per <b>provare lo strumento con dati non troppo pesanti</b> (raster fino a qualche milione di pixel); non è pensata per un uso intensivo o massivo. Per lavorare con regolarità o su dati grandi usa il <b>plugin QGIS</b> (la scelta migliore per il singolo utente) o la versione locale. Il vettoriale (GeoPackage) è disponibile solo nel plugin e nella versione locale.',
+    ex_btn: "Carica l'esempio (Spona_test)", ex_dl: "scarico l'esempio…", ex_ok: 'Spona_test caricato (dati di prova) ✔'
+  };
+  const WMSG = { w1: 'loading Python in the browser (the first time it can take tens of seconds)…', w2: 'loading numpy and scipy…' };
   const busy = (t) => { const b = $('busy'); if (b) { b.textContent = t; b.style.display = 'inline'; } };
-  const idle = () => { const b = $('busy'); if (b) { b.style.display = 'none'; b.textContent = 'calcolo…'; } };
+  const idle = () => { const b = $('busy'); if (b) { b.style.display = 'none'; b.textContent = T('busy', 'computing…'); } };
 
   // ------------------------------------------------------------------ worker (Python)
   const worker = new Worker('hf-worker.js');
@@ -20,14 +29,14 @@
   let wReady = false;
   worker.onmessage = (e) => {
     const m = e.data;
-    if (m.type === 'status') { busy(m.msg); return; }
+    if (m.type === 'status') { busy(T(m.key, WMSG[m.key])); return; }
     if (m.type === 'ready') { wReady = true; idle(); return; }
     const p = pending[m.id];
     if (!p) return;
     delete pending[m.id];
     if (m.type === 'error') p.rej(new Error(m.error)); else p.res(m);
   };
-  worker.onerror = (e) => { busy('errore nel calcolo: ' + (e.message || e)); };
+  worker.onerror = (e) => { busy('calculation error: ' + (e.message || e)); };
   function call(msg) {
     return new Promise((res, rej) => { const id = ++seq; pending[id] = { res, rej }; worker.postMessage(Object.assign({ id }, msg)); });
   }
@@ -48,7 +57,7 @@
     else if (epsg === 7791 || epsg === 6707 || epsg === 6708) d = null;
     if (!d) {
       try { d = (await (await fetch('https://epsg.io/' + epsg + '.proj4')).text()).trim(); } catch (e) { d = null; }
-      if (!d || d.indexOf('+proj') < 0) throw new Error('sistema di coordinate EPSG:' + epsg + ' non riconosciuto: riproietta il raster in UTM (es. EPSG:32632) e riprova');
+      if (!d || d.indexOf('+proj') < 0) throw new Error('coordinate system EPSG:' + epsg + ' not recognised: reproject the raster to UTM (e.g. EPSG:32632) and try again');
     }
     defCache[epsg] = d;
     return d;
@@ -63,24 +72,24 @@
     const tiff = await GeoTIFF.fromArrayBuffer(await file.arrayBuffer());
     const img = await tiff.getImage();
     const w = img.getWidth(), h = img.getHeight();
-    if (w * h > MAX_PX) throw new Error('raster troppo grande per il browser (' + (w * h / 1e6).toFixed(0) + ' milioni di pixel, massimo ' + (MAX_PX / 1e6) + '): ritaglialo oppure usa il plugin QGIS o la versione locale');
+    if (w * h > MAX_PX) throw new Error('raster too large for the browser (' + (w * h / 1e6).toFixed(0) + ' million pixels, maximum ' + (MAX_PX / 1e6) + '): crop it or use the QGIS plugin or the local version');
     const fd = img.getFileDirectory();
     const keys = img.getGeoKeys() || {};
     let sx, sy, x0, y0;
     if (fd.ModelTransformation) {
       const t = fd.ModelTransformation;
-      if (Math.abs(t[1]) > 1e-12 || Math.abs(t[4]) > 1e-12) throw new Error('il raster deve avere la griglia con il nord in alto, senza rotazione');
+      if (Math.abs(t[1]) > 1e-12 || Math.abs(t[4]) > 1e-12) throw new Error('the raster must have a north-up grid, without rotation');
       sx = t[0]; sy = -t[5]; x0 = t[3]; y0 = t[7];
     } else if (fd.ModelPixelScale && fd.ModelTiepoint) {
       sx = fd.ModelPixelScale[0]; sy = fd.ModelPixelScale[1];
       x0 = fd.ModelTiepoint[3] - fd.ModelTiepoint[0] * sx; y0 = fd.ModelTiepoint[4] + fd.ModelTiepoint[1] * sy;
-    } else throw new Error('il file non è un GeoTIFF georeferenziato');
-    if (Math.abs(sx - sy) > 0.01 * sx) throw new Error('i pixel devono essere quadrati');
+    } else throw new Error('the file is not a georeferenced GeoTIFF');
+    if (Math.abs(sx - sy) > 0.01 * sx) throw new Error('pixels must be square');
     if (keys.GTRasterTypeGeoKey === 2) { x0 -= sx / 2; y0 += sy / 2; }          // PixelIsPoint
     const epsg = keys.ProjectedCSTypeGeoKey;
     if (!epsg || epsg === 32767) {
-      if (keys.GeographicTypeGeoKey) throw new Error('il raster deve essere in un sistema di coordinate proiettato in metri (non in gradi): riproiettalo prima del caricamento');
-      throw new Error('sistema di coordinate non riconosciuto (serve un codice EPSG proiettato)');
+      if (keys.GeographicTypeGeoKey) throw new Error('the raster must be in a projected coordinate system in metres (not degrees): reproject it before loading');
+      throw new Error('unrecognised coordinate system (a projected EPSG code is needed)');
     }
     const def = await crsDef(epsg);
     const band = await img.readRasters({ samples: [0], interleave: true });
@@ -94,8 +103,8 @@
       h8[i] = r > 3 ? 3 : r;
     }
     const warnings = [];
-    if (odd.size) warnings.push('valori diversi da 0-3 (es. ' + [...odd].slice(0, 6).join(', ') + '): i non interi sono arrotondati e i valori >3 portati a 3; se la mappa usa altri codici riclassificala prima');
-    if (fd.SamplesPerPixel > 1) warnings.push('il raster ha ' + fd.SamplesPerPixel + ' bande: si usa la prima');
+    if (odd.size) warnings.push('values other than 0-3 (e.g. ' + [...odd].slice(0, 6).join(', ') + '): non-integers are rounded and values >3 are set to 3; if the map uses other codes, reclassify it first');
+    if (fd.SamplesPerPixel > 1) warnings.push('the raster has ' + fd.SamplesPerPixel + ' bands: the first one is used');
     return { w, h, res: sx, x0, y0, epsg, def, h8, warnings };
   }
 
@@ -222,11 +231,11 @@
       gj = r;
     } else if (name.endsWith('.geojson') || name.endsWith('.json')) {
       gj = JSON.parse(await file.text());
-    } else throw new Error('edifici: shapefile compresso (.zip) oppure GeoJSON (un GeoPackage va prima esportato in GeoJSON)');
+    } else throw new Error('buildings: zipped shapefile (.zip) or GeoJSON (a GeoPackage must first be exported to GeoJSON)');
     const polys = featuresToPolys(gj);
-    if (!polys.length) throw new Error('il file non contiene poligoni');
+    if (!polys.length) throw new Error('the file contains no polygons');
     const p0 = polys[0][0][0];
-    if (Math.abs(p0[0]) > 180 || Math.abs(p0[1]) > 90) throw new Error('le coordinate degli edifici non sono in gradi (EPSG:4326): per lo shapefile includi il file .prj nello zip; per il GeoJSON salva in EPSG:4326');
+    if (Math.abs(p0[0]) > 180 || Math.abs(p0[1]) > 90) throw new Error('building coordinates are not in degrees (EPSG:4326): for the shapefile include the .prj file in the zip; for GeoJSON save as EPSG:4326');
     return { gj, polys };
   }
 
@@ -244,7 +253,7 @@
       } catch (e) { last = e; await new Promise((s) => setTimeout(s, Math.min(1500 * (k + 1), 8000))); }
       finally { clearTimeout(timer); }
     }
-    throw new Error('Overpass non raggiungibile (' + last + '): riprova più tardi');
+    throw new Error('Overpass unreachable (' + last + '): try again later');
   }
   async function osmPolys(a) {
     const inv = proj4(a.def, 'EPSG:4326');
@@ -255,7 +264,7 @@
     const step = 0.05, ny = Math.max(1, Math.ceil((north - south) / step)), nx = Math.max(1, Math.ceil((east - west) / step));
     const seen = new Set(), polys = [];
     for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) {
-      busy('scarico gli edifici da OpenStreetMap: riquadro ' + (iy * nx + ix + 1) + '/' + (nx * ny) + '…');
+      busy(T('osm_dl', 'downloading buildings from OpenStreetMap: tile {0}/{1}…', iy * nx + ix + 1, nx * ny));
       const s = south + iy * (north - south) / ny, n = south + (iy + 1) * (north - south) / ny;
       const wv = west + ix * (east - west) / nx, e = west + (ix + 1) * (east - west) / nx;
       const q = '[out:json][timeout:90];(way["building"](' + [s, wv, n, e].join(',') + ');relation["building"](' + [s, wv, n, e].join(',') + '););out geom;';
@@ -292,11 +301,11 @@
   async function compute(q) {
     const P = parseQ(q);
     const a = areas[P.case];
-    if (!a) throw new Error('area non caricata');
+    if (!a) throw new Error('area not loaded');
     const noHl = q.replace(/&?hl=\d/, '');
     if (lastKey === noHl && lastRes) return lastRes;
     if (P.bld && P.osm && !a.bo) await ensureOsm(a);
-    busy('calcolo…');
+    busy(T('busy', 'computing…'));
     const pj = JSON.stringify({ bld: P.bld, bm: P.bm, holes: P.holes, area: P.area, all_holes: P.area >= 1e9, hmode: P.hmode, gap: P.gap, buf: P.buf, bufm: P.bufm });
     const r = await call({ type: 'process', h: a.h8, bu: a.bu, bo: a.bo, w: a.w, hh: a.h, res: a.res, params: pj, key: a.name + '|' + P.osm, osm: P.osm });
     lastKey = noHl; lastRes = { P, a, out: r.out, code: r.code, stats: r.stats, pj };
@@ -315,7 +324,7 @@
         running = false; idle();
         if (nextJob) { const j = nextJob; nextJob = null; start(j.q, j.res); }
       };
-      if (running) { if (nextJob) nextJob.res({ error: 'sostituita da una richiesta più recente' }); nextJob = { q, res }; } else start(q, res);
+      if (running) { if (nextJob) nextJob.res({ error: 'replaced by a more recent request' }); nextJob = { q, res }; } else start(q, res);
     });
   }
 
@@ -393,28 +402,28 @@
     },
     process,
     async exportRaster(q, clean) {
-      busy('preparo il raster…');
+      busy(T('prep_ras', 'preparing the raster…'));
       try {
         const c = await compute(q);
         const arr = clean ? c.out : c.out.map((v, i) => (c.code[i] > 0 ? v + 10 * c.code[i] : v));
         const codes = 'codes=0=nodata/zero;1-3=pericolo originale;1x=modificato da edifici;2x=da zone interne;3x=da buffer (x=livello 1-3)';
         const desc = 'HazardFill ' + VERSION + ' | source=' + c.a.layer + ' | params=' + c.pj + ' | ' + (clean ? 'codes=0=nodata/zero;1=basso;2=medio;3=alto' : codes);
         download(writeGeoTiff(arr instanceof Uint8Array ? arr : Uint8Array.from(arr), c.a, desc), base(c.a.layer) + (clean ? '_elaborata_pulita.tif' : '_elaborata_codici.tif'));
-      } catch (e) { alert('Esportazione non riuscita: ' + (e.message || e)); }
+      } catch (e) { alert(T('exp_fail', 'Export failed: {0}', trMsg(e.message || e))); }
       idle();
     },
     async exportStyle(name, clean) {
-      const m = await call({ type: 'qml', clean: clean ? 1 : 0 });
+      const m = await call({ type: 'qml', clean: clean ? 1 : 0, lang: HF_LANG() });
       download(new Blob([m.text], { type: 'application/xml' }), name + (clean ? '_elaborata_pulita.qml' : '_elaborata_codici.qml'));
     },
-    exportVector() { alert('Il vettoriale (GeoPackage) è disponibile nel plugin QGIS e nella versione locale della pagina.'); },
+    exportVector() { alert(T('no_vec', 'The vector (GeoPackage) is available in the QGIS plugin and in the local version of the page.')); },
     async upload(kind, file, area) {
       try {
-        busy('leggo ' + file.name + '…');
+        busy(T('reading', 'reading {0}…', file.name));
         if (kind === 'raster') {
           const a = await readGeoTiff(file);
           a.name = area; a.layer = file.name; a.bu = null; a.bo = null; a.gj = null; a.png = null;
-          busy('preparo la visualizzazione…');
+          busy(T('prep_view', 'preparing the view…'));
           await new Promise((r) => setTimeout(r, 20));
           a.display = buildDisplay(a);
           areas[area] = a; lastKey = null; lastRes = null;
@@ -422,9 +431,9 @@
           return { ok: true, case: area, warnings: a.warnings, info: { width: a.w, height: a.h, res: +a.res.toFixed(4), crs: 'EPSG:' + a.epsg } };
         }
         const a = areas[area];
-        if (!a) return { error: 'carica prima il GeoTIFF' };
+        if (!a) return { error: 'load the GeoTIFF first' };
         const { gj, polys } = await readBuildings(file);
-        busy('rasterizzo gli edifici…');
+        busy(T('rast_b', 'rasterizing the buildings…'));
         await new Promise((r) => setTimeout(r, 20));
         a.bu = rasterize(polysToPixels(a, polys), a.w, a.h);
         a.bo = null; lastKey = null; lastRes = null;
@@ -443,16 +452,16 @@
     const go = $('upgo');
     if (!go) return;
     const sm = document.querySelector('#updet .box small');
-    if (sm) sm.innerHTML = 'GeoTIFF a una banda, in CRS proiettato (metri), con le sole classi 0-3 (nodata = 0). Edifici (facoltativi): shapefile compresso .zip (con .prj) oppure GeoJSON in EPSG:4326. <b>Tutto il calcolo avviene nel tuo browser: i file non vengono inviati a nessun server.</b>';
+    if (sm) { const en = 'Single-band GeoTIFF, projected CRS (metres), with classes 0-3 only (nodata = 0). Buildings (optional): zipped shapefile (with .prj) or GeoJSON in EPSG:4326. <b>All calculation happens in your browser: files are not sent to any server.</b>'; sm.dataset.i = 'upinfo_web'; sm.dataset.en = en; sm.innerHTML = T('upinfo_web', en); }
     // il pulsante dell'esempio compare solo se i dati di prova sono presenti sul sito
     fetch('example/Mappa_Pericolo_Spona.tif', { method: 'HEAD' }).then(r => { if (r.ok) addExample(); }).catch(() => {});
     function addExample() {
     const b = document.createElement('button');
-    b.id = 'upex'; b.textContent = 'Carica l\'esempio (Spona_test)'; b.style.marginLeft = '6px';
+    b.id = 'upex'; b.dataset.i = 'ex_btn'; b.textContent = T('ex_btn', 'Load the example (Spona_test)'); b.style.marginLeft = '6px';
     go.parentNode.appendChild(b);
     b.onclick = async () => {
       b.disabled = true;
-      const msg = $('upmsg'); msg.style.color = '#666'; msg.textContent = 'scarico l\'esempio…';
+      const msg = $('upmsg'); msg.style.color = '#666'; msg.textContent = T('ex_dl', 'downloading the example…');
       try {
         const t = await (await fetch('example/Mappa_Pericolo_Spona.tif')).blob();
         const e = await (await fetch('example/Edifici.geojson')).blob();
@@ -460,10 +469,10 @@
         if (r1.error) throw new Error(r1.error);
         const r2 = await backend.upload('buildings', new File([e], 'Edifici.geojson'), 'Spona_test');
         if (r2.error) throw new Error(r2.error);
-        msg.textContent = 'preparo la mappa…';
+        msg.textContent = T('prepmap', 'preparing the map…');
         await window.loadInfo('Spona_test');
-        msg.style.color = '#080'; msg.innerHTML = 'Spona_test caricato (dati di prova) ✔';
-      } catch (err) { msg.style.color = '#b00'; msg.textContent = String(err.message || err); }
+        msg.style.color = '#080'; msg.innerHTML = T('ex_ok', 'Spona_test loaded (test data) ✔');
+      } catch (err) { msg.style.color = '#b00'; msg.textContent = trMsg(err.message || err); }
       b.disabled = false;
     };
     }

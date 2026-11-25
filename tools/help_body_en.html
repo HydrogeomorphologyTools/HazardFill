@@ -1,0 +1,117 @@
+<div class="hd"><img src="{{LOGO}}" alt="HazardFill HF" width="64" height="64"><div><h1>HazardFill &mdash; Help &middot; usage</h1><div class="sub">HF &middot; filling the no-value areas in hazard maps</div></div></div>
+<p>A procedure to remove unrealistic "islands" of no hazard in a raster hazard map
+(around buildings, in zones inside the modelled domain, at the edge of the domain). Available as a trial web page and as a QGIS plugin
+(Processing algorithms); both use the <b>same calculation code</b> and give the same results.</p>
+
+<div class="warn"><b>Disclaimer.</b> HazardFill (HF) is a <b>pre-screening aid</b> for land managers in the final assessment of hazard mapping, for a more informed choice and management of the restrictions to be placed on the territory. It does not produce hazard maps, does not replace modelling or expert judgement, and the proposed values are <i>starting examples</i>, not generally valid thresholds.</div>
+<h2>0. In brief</h2>
+<ol class="steps">
+ <li>Prepare the hazard map with <b>classes 0, 1, 2, 3 only</b> (section 1) and, if you have them, the buildings. You can choose the files one by one or <b>a folder</b>: the plugin (menu <i>Raster &rarr; HazardFill &rarr; Open data folder&hellip;</i>) and the web page ("folder" in <i>Load your data</i>) look for rasters and buildings and let you choose which ones to work on.</li>
+ <li>Choose the steps to apply: <b>buildings</b>, <b>interior zones</b>, <b>buffer</b>. The proposed values are <i>starting examples</i>, not definitive parameters.</li>
+ <li>See where the map has changed (modified pixels have their own code) and adjust the parameters.</li>
+ <li>Export the raster (with codes or clean) and the map image with legend, north arrow and scale.</li>
+</ol>
+
+<h2>1. Input data</h2>
+<h3>Hazard map (raster)</h3>
+<ul>
+ <li>GeoTIFF (or another GDAL format) with <b>one band</b>, regular "north-up" grid, in a <b>projected coordinate system in metres</b> (e.g. EPSG:32632). A geographic CRS (degrees) is not accepted.</li>
+ <li>Allowed values, <b>only these classes</b>:
+  <table>
+   <tr><th>Value</th><th>Meaning</th></tr>
+   <tr><td><span class="sw" style="background:#fff"></span>0</td><td>no hazard / outside the domain / nodata</td></tr>
+   <tr><td><span class="sw" style="background:#ffeb3b"></span>1</td><td>low hazard</td></tr>
+   <tr><td><span class="sw" style="background:#ff8c00"></span>2</td><td>medium hazard</td></tr>
+   <tr><td><span class="sw" style="background:#d62828"></span>3</td><td>high hazard</td></tr>
+  </table></li>
+ <li><b>Nodata</b> (also negative values such as &minus;9999, NaN, etc.) is <b>treated as 0</b>. Non-integer values are rounded; values &gt;3 are capped at 3. If your map uses other codes, reclassify it first (<i>Raster &rarr; Raster calculator</i>).</li>
+ <li>The original file is never modified: results are always written to new files.</li>
+</ul>
+<h3>Buildings (polygon vector, optional if OSM is used)</h3>
+<ul>
+ <li>Any format (shapefile, GeoPackage, ...), polygon geometries, <b>any CRS</b> (reprojected to the raster CRS). No attributes needed.</li>
+ <li>Buildings were not present in the simulation (treated as obstacles/removed): this is why the hazard on buildings is reconstructed from the surrounding pixels (criterion 0).</li>
+</ul>
+<h3>Buildings from OpenStreetMap (option)</h3>
+<ul>
+ <li>Source <b>provided buildings only</b> (default) / <b>provided + add from OSM</b> / <b>OSM only</b>.</li>
+ <li>Buildings are downloaded from OpenStreetMap (Overpass service) for the raster extent; <b>an internet connection is required</b>. Out of respect for the service, results are cached on disk and requests automatically retry on alternative servers when they are busy.</li>
+ <li>With <i>add</i>, an OSM building is added only if <b>less than 20%</b> of its area falls on buildings you already provided, so buildings present in your data are not duplicated.</li>
+ <li>If the OSM service is slow or does not answer (it happens), the operation can be <b>cancelled</b> and it is better to provide the buildings as a <b>shapefile (also .zip) or GeoPackage</b>: the repository contains a ready example (<code>examples/Spona_test</code>).</li>
+ <li>Limits: OSM coverage varies from place to place; of multipolygons only the outer rings are used (inner courtyards are ignored). Data &copy; OpenStreetMap contributors (ODbL): credit the source.</li>
+</ul>
+
+<h2>2. Criteria, with examples</h2>
+<p>In the examples each square is a pixel and the number is its value. <span style="border:2px solid #00b8d4;padding:0 4px">Blue outline</span> = building.
+<b>Hatched</b> pixels are those modified by the step and show their <b>code</b> (see section 3). Steps are applied in the order 0 &rarr; 1 &rarr; 2.</p>
+
+<h3>0. Buildings</h3>
+<p>Each building takes the <b>maximum</b> hazard value that touches it or lies within the <b>tolerance</b> (in metres) from its edge. An existing value is never lowered.</p>
+{{EX_BUILDINGS}}
+<p>Parameter: <b>tolerance from the edge in metres</b> (default 0 m). With 0 only the hazard inside the building counts; with values &gt;0 also that in the surrounding band. Metres are converted to pixels with the raster resolution (rounding): at 0.5 m/pixel, 1 m = 2 pixels.</p>
+
+<h3>1. Closing interior zones</h3>
+<p>Zones at 0 that are "interior" to the modelled domain (islands of no hazard surrounded by values &gt;0, not connected to the raster edge) are filled if their area is &le; <b>A m&sup2;</b>, or <b>all of them</b> (option "close ALL").</p>
+{{EX_HOLES}}
+<p><b>How interior/exterior is decided</b>: the "wide" parts of each zone at 0 are found (farther than half the gap from a valid value); those touching the raster edge are "exterior"; every pixel at 0 is assigned to the nearest wide zone by walking only over 0s. Pixels not reached from the outside are "interior".</p>
+
+<h3>1b. Sealable gap</h3>
+<p>With a gap of 0 m only completely enclosed zones are interior. With a gap &gt;0, zones connected to the outside only through passages <b>narrower</b> than the gap are also considered interior (pockets with a small opening, for example a zone closed by an embankment with a single break). All scales up to the given gap are considered.</p>
+{{EX_GAP}}
+
+<h3>1c. Fill value</h3>
+<p>Which value the closed interior zones receive:</p>
+<ul><li><b>most frequent boundary value</b> or majority (<code>major</code>, <b>default</b>): the value with the most boundary cells;</li>
+<li><b>boundary maximum</b> (<code>max</code>): the highest of the values surrounding the zone (a cautious choice);</li>
+<li><b>nearest</b> (<code>near</code>): each cell takes the value of the nearest valid cell (useful for large zones with varied boundary).</li></ul>
+{{EX_FILLMODE}}
+
+<h3>2. Graded buffer on class 0</h3>
+<p>A band of <b>given width in metres</b> (default 1 m) on class 0 adjacent to valid pixels receives the value of the nearest valid pixel <b>minus 1 degree</b> (minimum 1). It never overwrites pixels that are already valid. It is useful where the model ends "in the void" (edge of the domain).</p>
+{{EX_BUFFER}}
+<div class="note">A pixel modified by one step is not reassigned by the following ones: the code records the <b>first</b> step that modified it.</div>
+
+<h2>3. Results and codes</h2>
+<table>
+ <tr><th>File</th><th>Content</th></tr>
+ <tr><td>Raster with codes</td><td>uint8 GeoTIFF, nodata=0, same grid as the original, with a <code>.qml</code> style file of the same name.</td></tr>
+ <tr><td>Clean raster (optional)</td><td>Only values 0-3 (final version to use), with <code>.qml</code> style.</td></tr>
+ <tr><td>Vector (GeoPackage)</td><td>Polygons with the same codes as the raster, in <b>4 layers</b>: <code>originale</code> (classes 1-3 of the starting map), <code>omogeneizzata</code> (classes 1-3 after filling), <code>mappa_con_codici</code> (all codes 1-3, 11-33) and <code>modifiche</code> (only the modified polygons, codes 11-33). Fields: <code>codice</code>, <code>classe</code>, <code>criterio</code> (original / buildings / interior zones / buffer), <code>area_m2</code>. Embedded categorized QGIS style.</td></tr>
+ <tr><td>Map image (PNG)</td><td>Map with title, legend, north arrow and scale, at 150 dpi (section 4).</td></tr>
+</table>
+<p>The vector is obtained by polygonizing the pixels (adjacent cells of the same value merged, 4-connected, with stepped edges): geometries are valid and, by construction, have no overlaps or gaps between polygons; the sum of the areas of each code equals that of the raster pixels. Web page: "Vector (GeoPackage) with codes" button; plugin: optional output "GeoPackage vector with codes". For very large rasters generation can take minutes.</p>
+<p><b>How it looks.</b> In the raster with codes the values are shown as <b>single classes</b> (not blended), from <b>yellow</b> (1) to <b>orange</b> (2) to <b>red</b> (3): classes ending in 3 are the most severe. Modified pixels have the same hue but darker, different for each criterion. Where possible (vector, web page, images) modified pixels also have a <b>hatch</b> that depends on the criterion: <b>buildings with oblique lines, interior zones with horizontal lines, buffer with vertical lines</b>. By default the plugin algorithm creates <b>a single raster</b> (with codes); the clean raster (only 0-3) is obtained by ticking the corresponding box.</p>
+<p>Codes in the "with codes" raster: <b>tens = step that modified the pixel</b>, <b>units = assigned hazard level</b>.</p>
+<table>
+ <tr><th>Code</th><th>Meaning</th></tr>
+ <tr><td>0</td><td>nodata / no hazard</td></tr>
+ <tr><td>1 2 3</td><td>original (unmodified) hazard low / medium / high</td></tr>
+ <tr><td>11 12 13</td><td>value 1/2/3 assigned by <b>buildings</b></td></tr>
+ <tr><td>21 22 23</td><td>value 1/2/3 assigned by <b>interior zones</b></td></tr>
+ <tr><td>31 32 33</td><td>value 1/2/3 assigned by <b>graded buffer</b></td></tr>
+</table>
+<p>Example: <b>23</b> = high-hazard pixel (3) assigned by an interior zone (2). The parameters used are written in the GeoTIFF metadata (<i>Properties &rarr; Information</i>).</p>
+
+<h2>4. Map image (legend, north, scale)</h2>
+<ul>
+ <li><b>Web page</b>: section "Export map (image)". Choose <i>as on screen</i>, <i>original map only</i> or <i>map with fills only</i>; the PNG shows what you see (basemap, hillshade, layers, buildings).</li>
+ <li><b>Plugin</b>: algorithm "Export map with legend, north and scale (PNG)": it uses the visible layers of the QGIS project, the extent you indicate and the processed (or original) raster to describe in the legend.</li>
+ <li>Title: if there are fills, a sentence (e.g. "with fills at buildings and zones inside the mapping") and the parameters used appear under the title; without fills there is only the title.</li>
+ <li>The legend shows classes 1-3 and the codes (11-13, 21-23, 31-33) <b>of the selected steps only</b>.</li>
+ <li>Scale: minimum length 100 m, unit written once at the end. Output at 150 dpi.</li>
+ <li>The default file name contains the word <b>fills</b> (<i>riempimenti</i>) when fills are active.</li>
+</ul>
+
+<h2>5. Usage notes</h2>
+<ul>
+ <li>Start with the example values (buildings 0 m, interior zones 10 m&sup2;, buffer 1 m, fill by majority) and look at where changes occurred (codes &ge;11).</li>
+ <li><b>The values used are examples to help the choice, not definitive parameters</b>: the final choice belongs to the decision maker, based on the comparison between the original map and the map with fills.</li>
+ <li>For large interior zones noted in the results, increase the area or use "close ALL" and/or the gap: check visually that water arms or stretches truly without hazard are not closed.</li>
+ <li>The buffer only makes sense where the model ends "in the void"; large values widen the map beyond what was simulated.</li>
+ <li>Always keep the raster with codes: it lets you tell simulated data from assigned data at any time.</li>
+ <li>Building tolerance, buffer and gap (metres) and area (m&sup2;) are converted to pixels with the raster resolution.</li>
+</ul>
+
+<h2>6. Memory and run times</h2>
+<p>The calculation works in memory on the whole raster (numpy/scipy). For very large rasters (tens of millions of pixels, e.g. 0.5 m over several km&sup2;) a few GB of RAM and from seconds to minutes are needed; closing interior zones with a large gap is the heaviest step.</p>
+<p><small>HazardFill {{VER}} &middot; &copy; 2026 Stefano Crema, Marco Cavalli, Alessandro Sarretta &mdash; CNR-GEO (Institute of Geosciences and Earth Resources) &middot; GNU GPL v2 license &middot; <a href="https://github.com/HydrogeomorphologyTools/HazardFill">github.com/HydrogeomorphologyTools/HazardFill</a>. To be validated on final data before any official use. OpenStreetMap data &copy; OpenStreetMap contributors (ODbL).</small></p>

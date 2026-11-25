@@ -21,30 +21,34 @@ import urllib.request
 import numpy as np
 from scipy import ndimage as ndi
 
-__version__ = "1.2.1"
+__version__ = "1.3.0"
 
 COLORS = {1: (255, 235, 59), 2: (255, 140, 0), 3: (214, 40, 40)}
 STEP_NAME = {1: "edifici", 2: "zone interne", 3: "buffer"}
 LEVEL_NAME = {1: "basso", 2: "medio", 3: "alto"}
+LANG = "it"        # lingua delle etichette di legenda/stile: "en" (predefinita) o "it"
+_LBL = {"en": dict(l=("low", "medium", "high"), s=("buildings", "interior zones", "buffer"), n0="nodata / no hazard", h="%d %s hazard", o=" (original)", a="%d %s (assigned by %s)"),
+        "it": dict(l=("basso", "medio", "alto"), s=("edifici", "zone interne", "buffer"), n0="nodata / nessun pericolo", h="%d pericolo %s", o=" (originale)", a="%d %s (assegnato da %s)")}
 
 
 # ------------------------------------------------------------------ stili
-def code_table(clean):
-    """[(valore, (r,g,b,a), etichetta)]"""
-    rows = [(0, (0, 0, 0, 0), "nodata / nessun pericolo")]
+def code_table(clean, lang=None):
+    """[(valore, (r,g,b,a), etichetta)]; etichette in inglese (predefinito) o italiano"""
+    L = _LBL["it" if (lang or LANG) == "it" else "en"]
+    rows = [(0, (0, 0, 0, 0), L["n0"])]
     for k in (1, 2, 3):
-        rows.append((k, COLORS[k] + (255,), "%d pericolo %s" % (k, LEVEL_NAME[k]) + ("" if clean else " (originale)")))
+        rows.append((k, COLORS[k] + (255,), L["h"] % (k, L["l"][k - 1]) + ("" if clean else L["o"])))
     if not clean:
         for st, f in ((1, 0.72), (2, 0.55), (3, 0.38)):
             for k in (1, 2, 3):
                 c = tuple(int(v * f) for v in COLORS[k])
-                rows.append((10 * st + k, c + (255,), "%d %s (assegnato da %s)" % (10 * st + k, LEVEL_NAME[k], STEP_NAME[st])))
+                rows.append((10 * st + k, c + (255,), L["a"] % (10 * st + k, L["l"][k - 1], L["s"][st - 1])))
     return rows
 
 
-def make_qml(clean):
+def make_qml(clean, lang=None):
     ent = "".join('<paletteEntry value="%d" color="#%02x%02x%02x" alpha="%d" label="%s"/>' % (v, c[0], c[1], c[2], c[3], l)
-                  for v, c, l in code_table(clean))
+                  for v, c, l in code_table(clean, lang))
     return ('<!DOCTYPE qgis PUBLIC "http://mrcc.com/qgis.dtd" "SYSTEM"><qgis version="3.28.0" styleCategories="AllStyleCategories">'
             '<pipe><rasterrenderer type="paletted" band="1" opacity="1" alphaBand="-1" nodataColor="">'
             '<rasterTransparency/><colorPalette>%s</colorPalette></rasterrenderer>'
@@ -136,7 +140,7 @@ def _fetch_json(url, query, timeout, is_canceled=None):
         if is_canceled and is_canceled():
             raise Cancelled()
         if time.time() - t0 > timeout * 1.5:
-            raise TimeoutError("nessuna risposta entro %d s" % int(timeout * 1.5))
+            raise TimeoutError("no response within %d s" % int(timeout * 1.5))
     if "err" in box:
         raise box["err"]
     return box["data"]
@@ -163,7 +167,7 @@ def _overpass(query, tries=6, timeout=30, mirrors=None, is_canceled=None, log=No
             if log:
                 log("OSM: %s non risponde (%s)" % (host, str(e)[:80]))
             _sleep(min(1.5 * (k + 1), 6), is_canceled)
-    raise RuntimeError("Overpass non raggiungibile (%s): riprova piu' tardi oppure fornisci gli edifici come shapefile/GeoPackage" % last)
+    raise RuntimeError("Overpass unreachable (%s): try again later or provide the buildings as shapefile/GeoPackage" % last)
 
 
 def osm_buildings(south, west, north, east, cache_dir=None, step=0.05, log=None, is_canceled=None):
